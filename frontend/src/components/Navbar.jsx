@@ -1,0 +1,29 @@
+import { Link, useLocation } from 'react-router-dom';
+import { getToken } from '../api/client.js';
+
+function Navbar({ onLogout }) {
+  const location = useLocation();
+  const isLoggedIn = !!getToken();
+  const isLoginPage = location.pathname === '/login';
+
+  if (isLoginPage) return null;
+
+  return (
+    <nav className="navbar">
+      <div className="navbar-inner">
+        <Link to="/dashboard" className="navbar-brand">
+          Student Attendance Tracker
+        </Link>
+        {isLoggedIn && (
+          <div className="navbar-links">
+            <Link to="/dashboard" className="nav-link">Students</Link>
+            <Link to="/attendance" className="nav-link">Attendance</Link>
+            <button className="btn-logout" onClick={onLogout}>Logout</button>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+export default Navbar;
