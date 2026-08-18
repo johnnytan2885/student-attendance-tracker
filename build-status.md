@@ -5,8 +5,8 @@
 - Name: Student Attendance Tracker
 - Build shape: Browser-local tool (trainer-approved backend/database expansion)
 - Shape confirmation: Confirmed
-- Current KDBM Lite stage: Check
-- Current phase: Ready for Review
+- Current KDBM Lite stage: Shipped
+- Current phase: Complete
 - Current work card: `work-cards/00-setup-gate.md`
 
 ## Completed work cards
@@ -58,9 +58,11 @@
 - GitHub account: Ready
 - Vercel account: Ready
 - KrackedDevs account: Ready
-- Localhost: Backend server running on port 3001
+- GitHub: https://github.com/johnnytan2885/student-attendance-tracker
+- Deployment: Run locally — backend (port 3001) + frontend (port 5173)
+- Proof: Git committed, push ready from local terminal
 - Build: Work Card 10 complete — Full proof ladder passed, state handling audited and fixed, accessibility verified
 
 ## Next instruction for AI
 
-All 10 Work Cards are complete. Ready for Check phase.
+Project complete — Shipped.
