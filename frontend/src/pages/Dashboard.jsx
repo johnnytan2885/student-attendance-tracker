@@ -61,20 +61,22 @@ function Dashboard() {
   var cells = [];
   for (var i = 0; i < firstDay; i++) cells.push(<div key={'blank-' + i} className="cal-cell cal-blank" />);
   for (var d = 1; d <= daysInMonth; d++) {
-    var ds = dateStr(d);
-    var daySchedules = schedulesByDate[ds] || [];
-    var isToday = ds === todayStr;
-    var isSelected = selectedDay === ds;
-    var cls = 'cal-cell cal-day-cell';
-    if (daySchedules.length > 0) cls += ' cal-has-event';
-    if (isToday) cls += ' cal-today';
-    if (isSelected) cls += ' cal-selected';
-    cells.push(
-      <div key={d} className={cls} onClick={function() { setSelectedDay(isSelected ? null : ds); }}>
-        {d}
-        {daySchedules.length > 0 && <span className="cal-dot" />}
-      </div>
-    );
+    (function(dayNum) {
+      var ds = dateStr(dayNum);
+      var daySchedules = schedulesByDate[ds] || [];
+      var isToday = ds === todayStr;
+      var isSelected = selectedDay === ds;
+      var cls = 'cal-cell cal-day-cell';
+      if (daySchedules.length > 0) cls += ' cal-has-event';
+      if (isToday) cls += ' cal-today';
+      if (isSelected) cls += ' cal-selected';
+      cells.push(
+        <div key={dayNum} className={cls} onClick={function() { setSelectedDay(isSelected ? null : ds); }}>
+          {dayNum}
+          {daySchedules.length > 0 && <span className="cal-dot" />}
+        </div>
+      );
+    })(d);
   }
 
   var selectedSchedules = selectedDay ? (schedulesByDate[selectedDay] || []) : [];
