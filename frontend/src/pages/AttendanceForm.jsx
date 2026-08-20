@@ -6,7 +6,7 @@ function AttendanceForm() {
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [students, setStudents] = useState([]);
-  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
   const [status, setStatus] = useState('present');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -42,7 +42,7 @@ function AttendanceForm() {
     try {
       const data = await getStudents(false, selectedClassId);
       setStudents(data);
-      setSelectedStudentId('');
+      setSelectedIds([]);
       setStatus('present');
     } catch (err) {
       setError(err.message);
@@ -51,15 +51,22 @@ function AttendanceForm() {
     }
   }
 
+  function toggleStudent(id) {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!selectedStudentId) return;
+    if (selectedIds.length === 0) return;
     setSubmitting(true);
     setError('');
     setSuccess('');
     try {
-      const result = await markAttendance(date, [{ student_id: Number(selectedStudentId), status }]);
-      setSuccess(`Attendance saved for ${students.find(s => String(s.id) === selectedStudentId)?.name} on ${date}`);
+      const payload = selectedIds.map(id => ({ student_id: id, status }));
+      const result = await markAttendance(date, payload);
+      setSuccess(`Attendance saved for ${selectedIds.length} student(s) on ${date}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -70,7 +77,7 @@ function AttendanceForm() {
   function handleMarkAnother() {
     setSuccess('');
     setError('');
-    setSelectedStudentId('');
+    setSelectedIds([]);
   }
 
   return (
@@ -110,20 +117,25 @@ function AttendanceForm() {
           {students.length > 0 && (
             <>
               <div className="form-group">
-                <label htmlFor="attendance-student">Student</label>
-                <select id="attendance-student" value={selectedStudentId} onChange={e => setSelectedStudentId(e.target.value)} required>
-                  <option value="">Select a student...</option>
+                <label>Select Student(s)</label>
+                <div className="student-check-list">
                   {students.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}{s.stage_name ? ` (${s.stage_name})` : ''}
-                    </option>
+                    <label key={s.id} className="student-check-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(s.id)}
+                        onChange={() => toggleStudent(s.id)}
+                      />
+                      <span>{s.name}</span>
+                      {s.stage_name && <span className="inactive-label" style={{ fontSize: 11, marginLeft: 6 }}>{s.stage_name}</span>}
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
 
-              {selectedStudentId && (
+              {selectedIds.length > 0 && (
                 <div className="form-group">
-                  <label>Status</label>
+                  <label>Status for selected ({selectedIds.length})</label>
                   <div className="attendance-status-options">
                     <button
                       type="button"
@@ -143,9 +155,9 @@ function AttendanceForm() {
                 </div>
               )}
 
-              {selectedStudentId && (
+              {selectedIds.length > 0 && (
                 <button type="submit" className="btn-primary attendance-submit" disabled={submitting}>
-                  {submitting ? 'Saving...' : 'Save Attendance'}
+                  {submitting ? 'Saving...' : `Save Attendance (${selectedIds.length})`}
                 </button>
               )}
             </>
