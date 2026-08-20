@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSchedulesRange, getAttendanceDates } from '../api/client.js';
+import { getSchedulesRange, getAttendanceDates, getTodayAttendance } from '../api/client.js';
 
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -10,6 +10,7 @@ function Dashboard() {
   var [schedules, setSchedules] = useState([]);
   var [schedulesByDate, setSchedulesByDate] = useState({});
   var [attendanceDates, setAttendanceDates] = useState({});
+  var [todayAtt, setTodayAtt] = useState([]);
   var [year, setYear] = useState(new Date().getFullYear());
   var [month, setMonth] = useState(new Date().getMonth());
   var [loading, setLoading] = useState(true);
@@ -24,11 +25,13 @@ function Dashboard() {
     var lastDay = new Date(year, month + 1, 0).getDate();
     var last = year + '-' + pad(month + 1) + '-' + pad(lastDay);
     try {
-      var [schedData, attDates] = await Promise.all([
+      var [schedData, attDates, todayData] = await Promise.all([
         getSchedulesRange(first, last),
-        getAttendanceDates(first, last)
+        getAttendanceDates(first, last),
+        getTodayAttendance()
       ]);
       setSchedules(schedData);
+      setTodayAtt(todayData);
       var attMap = {};
       attDates.forEach(function(d) { attMap[d] = true; });
       setAttendanceDates(attMap);
@@ -115,7 +118,7 @@ function Dashboard() {
     );
   }
 
-  // Horizontal timeline 08:00 - 18:00 with lane assignment
+  // Horizontal timeline 08:00 - 18:00 with lane assignment — includes scheduled classes AND attendance records
   var todaySchedules = schedulesByDate[todayStr] || [];
   var HOURS_START = 8;
   var HOURS_END = 18;
@@ -132,7 +135,27 @@ function Dashboard() {
   }
 
   // Sort by start time, then assign lanes
-  var sorted = todaySchedules.slice().sort(function(a, b) {
+  // Merge scheduled classes and attendance records for today's timeline
+  var timelineItems = todaySchedules.map(function(sc) {
+    return {
+      id: 'sched-' + sc.id,
+      time: sc.time,
+      end_time: sc.end_time,
+      label: sc.class_name,
+      students: sc.students.map(function(s) { return s.name; }).join(', ')
+    };
+  });
+  todayAtt.forEach(function(ar) {
+    timelineItems.push({
+      id: 'att-' + ar.id,
+      time: ar.time || '',
+      end_time: ar.end_time || '',
+      label: ar.student_name,
+      students: ''
+    });
+  });
+
+  var sorted = timelineItems.slice().sort(function(a, b) {
     return (a.time || '00:00').localeCompare(b.time || '00:00');
   });
 
@@ -184,8 +207,8 @@ function Dashboard() {
           className="htimeline-block"
           style={{ left: leftPct + '%', width: widthPct + '%', top: (laneIdx * laneHeight) + 'px', height: (laneHeight - 2) + 'px' }}
         >
-          <span className="htimeline-block-name">{ts2.class_name}</span>
-          <span className="htimeline-block-students">{ts2.students.map(function(s) { return s.name; }).join(', ')}</span>
+          <span className="htimeline-block-name">{ts2.label}</span>
+          <span className="htimeline-block-students">{ts2.students}</span>
         </div>
       );
     }
@@ -202,7 +225,7 @@ function Dashboard() {
         </div>
       </div>
 
-      {todaySchedules.length > 0 && (
+      {timelineItems.length > 0 && (
         <div className="card htimeline-card">
           <h3 className="section-title">Today - {todayStr}</h3>
           <div className="htimeline-wrap">

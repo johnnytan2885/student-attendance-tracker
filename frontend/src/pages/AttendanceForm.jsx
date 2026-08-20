@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { getStudents, getClasses, markAttendance } from '../api/client.js';
 
 function AttendanceForm() {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-  const [classes, setClasses] = useState([]);
+  var [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  var [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  var [endTime, setEndTime] = useState('');
+  var [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -65,7 +66,7 @@ function AttendanceForm() {
     setError('');
     setSuccess('');
     try {
-      const payload = selectedIds.map(id => ({ student_id: id, status, time }));
+      const payload = selectedIds.map(function(id) { return { student_id: id, status: status, time: time, end_time: endTime || null }; });
       const result = await markAttendance(date, payload);
       setSuccess(`Attendance saved for ${selectedIds.length} student(s) on ${date}`);
     } catch (err) {
@@ -98,8 +99,13 @@ function AttendanceForm() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="attendance-time">Time</label>
-            <input id="attendance-time" type="time" value={time} onChange={e => setTime(e.target.value)} required />
+            <label htmlFor="attendance-time">Start Time</label>
+            <input id="attendance-time" type="time" value={time} onChange={function(e) { setTime(e.target.value); }} required />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="attendance-end">End Time</label>
+            <input id="attendance-end" type="time" value={endTime} onChange={function(e) { setEndTime(e.target.value); }} />
           </div>
 
           <div className="form-group">

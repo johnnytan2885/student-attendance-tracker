@@ -197,9 +197,9 @@ function StudentProfile() {
               <p className="status-text">No attendance records yet.</p>
             ) : (
               <div className="attendance-table">
-                <div className="attendance-table-header" style={{ gridTemplateColumns: '90px 70px 1fr 1fr 100px' }}>
+                <div className="attendance-table-header" style={{ gridTemplateColumns: '90px 90px 1fr 1fr 100px' }}>
                   <span>Date</span>
-                  <span>Time</span>
+                  <span>S / E</span>
                   <span>Status</span>
                   <span>Replacement</span>
                   <span>Actions</span>
@@ -207,10 +207,10 @@ function StudentProfile() {
                 {attendance.map(record => (
                   <div
                     key={record.id}
-                    style={{ gridTemplateColumns: '90px 70px 1fr 1fr 100px' }} className={`attendance-table-row ${record.status === 'absent' ? 'row-absent' : 'row-present'}`}
+                    style={{ gridTemplateColumns: '90px 90px 1fr 1fr 100px' }} className={`attendance-table-row ${record.status === 'absent' ? 'row-absent' : 'row-present'}`}
                   >
                     <span>{record.date}</span>
-                    <span>{record.time ? record.time.slice(0, 5) : '—'}</span>
+                    <span>{record.time ? record.time.slice(0, 5) + (record.end_time ? '/' + record.end_time.slice(0, 5) : '') : '—'}</span>
                     <span>{record.status === 'present' ? 'Present' : 'Absent'}</span>
                     <span>{record.replacement_date || '—'}</span>
                     <span className="attendance-row-actions">

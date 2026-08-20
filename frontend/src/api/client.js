@@ -111,6 +111,10 @@ export async function getAttendanceDates(from, to) {
   return apiFetch('/api/attendance/dates?from=' + from + '&to=' + to);
 }
 
+export async function getTodayAttendance() {
+  return apiFetch('/api/attendance/today');
+}
+
 export async function editReplacementDate(attendanceId, replacementDate) {
   return apiFetch(`/api/attendance/${attendanceId}/replacement`, {
     method: 'PATCH',
