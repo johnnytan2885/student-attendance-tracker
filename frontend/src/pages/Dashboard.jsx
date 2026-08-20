@@ -115,10 +115,10 @@ function Dashboard() {
     );
   }
 
-  // Horizontal timeline 08:00 - 22:00 with lane assignment
+  // Horizontal timeline 08:00 - 18:00 with lane assignment
   var todaySchedules = schedulesByDate[todayStr] || [];
   var HOURS_START = 8;
-  var HOURS_END = 22;
+  var HOURS_END = 18;
   var HOURS_TOTAL = HOURS_END - HOURS_START;
   var MINUTES_TOTAL = HOURS_TOTAL * 60;
 
