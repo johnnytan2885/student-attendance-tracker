@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSchedulesRange } from '../api/client.js';
+import { getSchedulesRange, getAttendanceDates } from '../api/client.js';
 
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -9,6 +9,7 @@ function Dashboard() {
   var navigate = useNavigate();
   var [schedules, setSchedules] = useState([]);
   var [schedulesByDate, setSchedulesByDate] = useState({});
+  var [attendanceDates, setAttendanceDates] = useState({});
   var [year, setYear] = useState(new Date().getFullYear());
   var [month, setMonth] = useState(new Date().getMonth());
   var [loading, setLoading] = useState(true);
@@ -23,10 +24,17 @@ function Dashboard() {
     var lastDay = new Date(year, month + 1, 0).getDate();
     var last = year + '-' + pad(month + 1) + '-' + pad(lastDay);
     try {
-      var data = await getSchedulesRange(first, last);
-      setSchedules(data);
+      var [schedData, attDates] = await Promise.all([
+        getSchedulesRange(first, last),
+        getAttendanceDates(first, last)
+      ]);
+      setSchedules(schedData);
+      var attMap = {};
+      attDates.forEach(function(d) { attMap[d] = true; });
+      setAttendanceDates(attMap);
+
       var byDate = {};
-      data.forEach(function(sc) {
+      schedData.forEach(function(sc) {
         if (!byDate[sc.date]) byDate[sc.date] = [];
         byDate[sc.date].push(sc);
       });
@@ -63,17 +71,16 @@ function Dashboard() {
   for (var d = 1; d <= daysInMonth; d++) {
     (function(dayNum) {
       var ds = dateStr(dayNum);
-      var daySchedules = schedulesByDate[ds] || [];
+      var hasEvent = (schedulesByDate[ds] || []).length > 0 || attendanceDates[ds] === true;
       var isToday = ds === todayStr;
       var isSelected = selectedDay === ds;
       var cls = 'cal-cell cal-day-cell';
-      if (daySchedules.length > 0) cls += ' cal-has-event';
-      if (isToday) cls += ' cal-today';
+      if (hasEvent) cls += ' cal-has-event';
+      if (isToday && !isSelected) cls += ' cal-today';
       if (isSelected) cls += ' cal-selected';
       cells.push(
         <div key={dayNum} className={cls} onClick={function() { setSelectedDay(isSelected ? null : ds); }}>
           {dayNum}
-          {daySchedules.length > 0 && <span className="cal-dot" />}
         </div>
       );
     })(d);
@@ -108,7 +115,7 @@ function Dashboard() {
     );
   }
 
-  // Horizontal timeline 08:00 - 22:00
+  // Horizontal timeline 08:00 - 22:00 with lane assignment
   var todaySchedules = schedulesByDate[todayStr] || [];
   var HOURS_START = 8;
   var HOURS_END = 22;
@@ -124,28 +131,64 @@ function Dashboard() {
     );
   }
 
-  var timelineBlocks = [];
-  for (var tb = 0; tb < todaySchedules.length; tb++) {
-    var ts = todaySchedules[tb];
-    var startH = Number((ts.time || '08:00').split(':')[0]);
-    var startM = Number((ts.time || '08:00').split(':')[1]);
-    var endH = ts.end_time ? Number(ts.end_time.split(':')[0]) : (startH + 1);
-    var endM = ts.end_time ? Number(ts.end_time.split(':')[1]) : startM;
-    var classStartMin = Math.max((startH * 60 + startM) - HOURS_START * 60, 0);
-    var classEndMin = Math.min((endH * 60 + endM) - HOURS_START * 60, MINUTES_TOTAL);
-    var leftPct = (classStartMin / MINUTES_TOTAL) * 100;
-    var widthPct = Math.max(((classEndMin - classStartMin) / MINUTES_TOTAL) * 100, 1.5);
+  // Sort by start time, then assign lanes
+  var sorted = todaySchedules.slice().sort(function(a, b) {
+    return (a.time || '00:00').localeCompare(b.time || '00:00');
+  });
 
-    timelineBlocks.push(
-      <div
-        key={ts.id}
-        className="htimeline-block"
-        style={{ left: leftPct + '%', width: Math.max(widthPct, 1.5) + '%' }}
-      >
-        <span className="htimeline-block-name">{ts.class_name}</span>
-        <span className="htimeline-block-students">{ts.students.map(function(s) { return s.name; }).join(', ')}</span>
-      </div>
-    );
+  var lanes = [];
+  for (var ti = 0; ti < sorted.length; ti++) {
+    var ts = sorted[ti];
+    var sH = Number((ts.time || '08:00').split(':')[0]);
+    var sM = Number((ts.time || '08:00').split(':')[1]);
+    var eH = ts.end_time ? Number(ts.end_time.split(':')[0]) : (sH + 1);
+    var eM = ts.end_time ? Number(ts.end_time.split(':')[1]) : sM;
+    var startMin = sH * 60 + sM;
+    var endMin = eH * 60 + eM;
+
+    var assignedLane = -1;
+    for (var li = 0; li < lanes.length; li++) {
+      var conflict = false;
+      for (var bi = 0; bi < lanes[li].length; bi++) {
+        var existing = lanes[li][bi];
+        if (startMin < existing.end && endMin > existing.start) {
+          conflict = true;
+          break;
+        }
+      }
+      if (!conflict) { assignedLane = li; break; }
+    }
+    if (assignedLane === -1) {
+      assignedLane = lanes.length;
+      lanes.push([]);
+    }
+    lanes[assignedLane].push({ schedule: ts, start: startMin, end: endMin });
+  }
+
+  var timelineBlocks = [];
+  var laneHeight = 24;
+  var trackHeight = Math.max(lanes.length * laneHeight, laneHeight);
+
+  for (var laneIdx = 0; laneIdx < lanes.length; laneIdx++) {
+    for (var bi = 0; bi < lanes[laneIdx].length; bi++) {
+      var entry = lanes[laneIdx][bi];
+      var ts2 = entry.schedule;
+      var classStartMin = Math.max(entry.start - HOURS_START * 60, 0);
+      var classEndMin = Math.min(entry.end - HOURS_START * 60, MINUTES_TOTAL);
+      var leftPct = (classStartMin / MINUTES_TOTAL) * 100;
+      var widthPct = Math.max(((classEndMin - classStartMin) / MINUTES_TOTAL) * 100, 1.5);
+
+      timelineBlocks.push(
+        <div
+          key={ts2.id}
+          className="htimeline-block"
+          style={{ left: leftPct + '%', width: widthPct + '%', top: (laneIdx * laneHeight) + 'px', height: (laneHeight - 2) + 'px' }}
+        >
+          <span className="htimeline-block-name">{ts2.class_name}</span>
+          <span className="htimeline-block-students">{ts2.students.map(function(s) { return s.name; }).join(', ')}</span>
+        </div>
+      );
+    }
   }
 
   return (
@@ -159,19 +202,19 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="card htimeline-card">
-        <h3 className="section-title">Today - {todayStr}</h3>
-        <div className="htimeline-wrap">
-          <div className="htimeline-nowrap">
-            <div className="htimeline-labels">
-              {hourLabels}
-            </div>
-            <div className="htimeline-track">
-              {timelineBlocks}
+      {todaySchedules.length > 0 && (
+        <div className="card htimeline-card">
+          <h3 className="section-title">Today - {todayStr}</h3>
+          <div className="htimeline-wrap">
+            <div className="htimeline-nowrap">
+              <div className="htimeline-labels">{hourLabels}</div>
+              <div className="htimeline-track" style={{ height: trackHeight + 'px' }}>
+                {timelineBlocks}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="dashboard-layout">
         <div className="card dashboard-calendar-card" style={{ padding: 12 }}>

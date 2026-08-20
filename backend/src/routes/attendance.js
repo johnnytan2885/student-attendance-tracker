@@ -84,6 +84,16 @@ router.get('/student/:studentId', (req, res) => {
   res.json(records);
 });
 
+// Get dates that have attendance records (for calendar highlighting)
+router.get('/dates', (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ error: 'from and to dates required' });
+  const dates = db.prepare(
+    'SELECT DISTINCT date FROM attendance_record WHERE date >= ? AND date <= ? ORDER BY date'
+  ).all(from, to);
+  res.json(dates.map(function(d) { return d.date; }));
+});
+
 // Edit a single attendance record (change status)
 router.patch('/:id', (req, res) => {
   const { status, time } = req.body;

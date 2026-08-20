@@ -107,6 +107,10 @@ export async function getStudentAttendance(studentId) {
   return apiFetch(`/api/attendance/student/${studentId}`);
 }
 
+export async function getAttendanceDates(from, to) {
+  return apiFetch('/api/attendance/dates?from=' + from + '&to=' + to);
+}
+
 export async function editReplacementDate(attendanceId, replacementDate) {
   return apiFetch(`/api/attendance/${attendanceId}/replacement`, {
     method: 'PATCH',

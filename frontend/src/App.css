@@ -836,8 +836,6 @@ label {
 
 .htimeline-block {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
   background: #dbeafe;
   border: 1px solid #93c5fd;
   border-radius: 4px;
@@ -887,7 +885,6 @@ label {
 
 .cal-day-cell {
   cursor: pointer;
-  position: relative;
   font-size: 11px;
 }
 
@@ -901,23 +898,13 @@ label {
 }
 
 .cal-selected {
-  background: #e0e7ff;
+  background: #bfdbfe;
   font-weight: 700;
 }
 
 .cal-has-event {
+  background: #dbeafe;
   font-weight: 600;
-}
-
-.cal-dot {
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--color-primary);
 }
 
 .schedule-card-item {
