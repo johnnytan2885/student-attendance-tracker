@@ -18,14 +18,15 @@ function Dashboard() {
 
   async function loadMonth() {
     setLoading(true);
-    const first = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const pad = n => String(n).padStart(2, '0');
+    const first = year + '-' + pad(month + 1) + '-01';
     const lastDay = new Date(year, month + 1, 0).getDate();
-    const last = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const last = year + '-' + pad(month + 1) + '-' + pad(lastDay);
     try {
       const data = await getSchedulesRange(first, last);
       setSchedules(data);
       const byDate = {};
-      data.forEach(sc => {
+      data.forEach(function(sc) {
         if (!byDate[sc.date]) byDate[sc.date] = [];
         byDate[sc.date].push(sc);
       });
@@ -42,34 +43,37 @@ function Dashboard() {
   const today = new Date().toISOString().slice(0, 10);
 
   function prevMonth() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11); }
-    else setMonth(m => m - 1);
+    if (month === 0) { setYear(function(y) { return y - 1; }); setMonth(11); }
+    else setMonth(function(m) { return m - 1; });
     setSelectedDay(null);
   }
 
   function nextMonth() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0); }
-    else setMonth(m => m + 1);
+    if (month === 11) { setYear(function(y) { return y + 1; }); setMonth(0); }
+    else setMonth(function(m) { return m + 1; });
     setSelectedDay(null);
   }
 
   function dateStr(d) {
-    return `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
   }
 
   const cells = [];
-  for (let i = 0; i < firstDay; i++) cells.push(<div key={`blank-${i}`} className="cal-cell cal-blank" />);
+  for (let i = 0; i < firstDay; i++) cells.push(<div key={'blank-' + i} className="cal-cell cal-blank" />);
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = dateStr(d);
     const daySchedules = schedulesByDate[ds] || [];
     const isToday = ds === today;
     const isSelected = selectedDay === ds;
+    let cls = 'cal-cell cal-day-cell';
+    if (daySchedules.length > 0) cls += ' cal-has-event';
+    if (isToday) cls += ' cal-today';
+    if (isSelected) cls += ' cal-selected';
     cells.push(
       <div
         key={d}
-        className={`cal-cell cal-day-cell ${daySchedules.length > 0 ? 'cal-has-event' : ''} ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}`}
-        onClick={() => setSelectedDay(isSelected ? null : ds)}
-        title={daySchedules.map(s => `${s.time} ${s.class_name}`).join('\n')}
+        className={cls}
+        onClick={function() { setSelectedDay(isSelected ? null : ds); }}
       >
         {d}
         {daySchedules.length > 0 && <span className="cal-dot" />}
@@ -79,14 +83,44 @@ function Dashboard() {
 
   const selectedSchedules = selectedDay ? (schedulesByDate[selectedDay] || []) : [];
 
+  const sidebarCards = [];
+  for (const sc of selectedSchedules) {
+    const partsStart = (sc.time || '').split(':');
+    const partsEnd = (sc.end_time || '').split(':');
+    let durStr = '';
+    if (sc.time && sc.end_time) {
+      const min = (Number(partsEnd[0]) * 60 + Number(partsEnd[1])) - (Number(partsStart[0]) * 60 + Number(partsStart[1]));
+      if (min > 0) {
+        durStr = ' (' + Math.floor(min / 60) + 'h';
+        if (min % 60 > 0) durStr += min % 60 + 'm';
+        durStr += ')';
+      }
+    }
+    sidebarCards.push(
+      <div key={sc.id} className="schedule-card-item">
+        <div className="schedule-card-time">{sc.time}</div>
+        <div className="schedule-card-body">
+          <strong>{sc.class_name}</strong>
+          <div className="schedule-card-duration">
+            {sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}
+          </div>
+          <div className="schedule-card-students">
+            {sc.students.map(function(s) { return s.name; }).join(', ')}
+          </div>
+          {sc.notes && <div className="profile-detail">{sc.notes}</div>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="dashboard-header">
         <h1 className="dashboard-title">Dashboard</h1>
         <div className="dashboard-actions">
-          <button className="btn-primary btn-sm" onClick={() => navigate('/dashboard')}>Students</button>
-          <button className="btn-secondary btn-sm" onClick={() => navigate('/attendance')}>Mark Attendance</button>
-          <button className="btn-secondary btn-sm" onClick={() => navigate('/schedule')}>Schedule</button>
+          <button className="btn-primary btn-sm" onClick={function() { navigate('/dashboard'); }}>Students</button>
+          <button className="btn-secondary btn-sm" onClick={function() { navigate('/attendance'); }}>Mark Attendance</button>
+          <button className="btn-secondary btn-sm" onClick={function() { navigate('/schedule'); }}>Schedule</button>
         </div>
       </div>
 
@@ -98,7 +132,7 @@ function Dashboard() {
             <button className="cal-nav" onClick={nextMonth}>&rsaquo;</button>
           </div>
           <div className="cal-grid" style={{ gap: 4 }}>
-            {DAYS.map(d => <div key={d} className="cal-day-label">{d}</div>)}
+            {DAYS.map(function(d) { return <div key={d} className="cal-day-label">{d}</div>; })}
             {cells}
           </div>
         </div>
@@ -113,32 +147,11 @@ function Dashboard() {
           {!loading && selectedDay && (
             <div className="card" style={{ padding: 16 }}>
               <h3 className="section-title">{selectedDay}</h3>
-              {selectedSchedules.length === 0 ? (
+              {sidebarCards.length === 0 ? (
                 <p className="status-text">No classes scheduled</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {selectedSchedules.map(sc => (
-                    <div key={sc.id} className="schedule-card-item">
-                      <div className="schedule-card-time">{sc.time}</div>
-                      <div className="schedule-card-body">
-                        <strong>{sc.class_name}</strong>
-                        <div className="schedule-card-duration">
-                          {sc.time}{sc.end_time ? ` - ${sc.end_time}` : ''}
-                          {sc.time && sc.end_time && (() => {
-                            const s = sc.time.split(':').map(Number);
-                            const e = sc.end_time.split(':').map(Number);
-                            const min = (e[0]*60+e[1]) - (s[0]*60+s[1]);
-                            if (min > 0) return ` (${Math.floor(min/60)}h${min%60 > 0 ? min%60+'m' : ''})`;
-                            return '';
-                          })()}
-                        </div>
-                        <div className="schedule-card-students">
-                          {sc.students.map(s => s.name).join(', ')}
-                        </div>
-                        {sc.notes && <div className="profile-detail">{sc.notes}</div>}
-                      </div>
-                    </div>
-                  ))}
+                  {sidebarCards}
                 </div>
               )}
             </div>

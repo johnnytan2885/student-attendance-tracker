@@ -169,26 +169,35 @@ function SchedulePage() {
             <span>Class</span>
             <span>Actions</span>
           </div>
-          {schedules.map(sc => {
-            const startParts = (sc.time || '').split(':').map(Number);
-            const endParts = (sc.end_time || '').split(':').map(Number);
-            let duration = '';
-            if (sc.end_time && sc.time) {
-              const totalMin = (endParts[0] * 60 + endParts[1]) - (startParts[0] * 60 + startParts[1]);
-              if (totalMin > 0) duration = `${Math.floor(totalMin / 60)}h${totalMin % 60 > 0 ? `${totalMin % 60}m` : ''}`;
+          {function() {
+            const rows = [];
+            for (const sc of schedules) {
+              const start = (sc.time || '').split(':');
+              const end = (sc.end_time || '').split(':');
+              let duration = '';
+              if (sc.time && sc.end_time) {
+                const totalMin = (Number(end[0]) * 60 + Number(end[1])) - (Number(start[0]) * 60 + Number(start[1]));
+                if (totalMin > 0) {
+                  const h = Math.floor(totalMin / 60);
+                  const m = totalMin % 60;
+                  duration = h + 'h' + (m > 0 ? m + 'm' : '');
+                }
+              }
+              rows.push(
+                <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 70px 70px 70px 2fr 80px' }}>
+                  <span>{sc.date}</span>
+                  <span>{sc.time}</span>
+                  <span>{sc.end_time || '—'}</span>
+                  <span>{duration}</span>
+                  <span>{sc.class_name}</span>
+                  <span className="attendance-row-actions">
+                    <button className="btn-danger btn-xs" onClick={() => setShowDelete(sc.id)}>Del</button>
+                  </span>
+                </div>
+              );
             }
-            return (
-            <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 70px 70px 70px 2fr 80px' }}>
-              <span>{sc.date}</span>
-              <span>{sc.time}</span>
-              <span>{sc.end_time || '—'}</span>
-              <span>{duration}</span>
-              <span>{sc.class_name}</span>
-              <span className="attendance-row-actions">
-                <button className="btn-danger btn-xs" onClick={() => setShowDelete(sc.id)}>Del</button>
-              </span>
-            </div>
-          ))}
+            return rows;
+          }()}
         </div>
       )}
 
