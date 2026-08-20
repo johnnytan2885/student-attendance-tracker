@@ -122,6 +122,16 @@ function Dashboard() {
                       <div className="schedule-card-time">{sc.time}</div>
                       <div className="schedule-card-body">
                         <strong>{sc.class_name}</strong>
+                        <div className="schedule-card-duration">
+                          {sc.time}{sc.end_time ? ` - ${sc.end_time}` : ''}
+                          {sc.time && sc.end_time && (() => {
+                            const s = sc.time.split(':').map(Number);
+                            const e = sc.end_time.split(':').map(Number);
+                            const min = (e[0]*60+e[1]) - (s[0]*60+s[1]);
+                            if (min > 0) return ` (${Math.floor(min/60)}h${min%60 > 0 ? min%60+'m' : ''})`;
+                            return '';
+                          })()}
+                        </div>
                         <div className="schedule-card-students">
                           {sc.students.map(s => s.name).join(', ')}
                         </div>

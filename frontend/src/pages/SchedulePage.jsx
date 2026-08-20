@@ -10,6 +10,7 @@ function SchedulePage() {
   const [students, setStudents] = useState([]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('10:00');
   const [notes, setNotes] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [schedules, setSchedules] = useState([]);
@@ -69,6 +70,7 @@ function SchedulePage() {
         class_id: Number(selectedClassId),
         date,
         time,
+        end_time: endTime || null,
         notes: notes || null,
         student_ids: selectedIds,
       });
@@ -116,8 +118,12 @@ function SchedulePage() {
               <input id="sched-date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
             </div>
             <div className="form-group">
-              <label htmlFor="sched-time">Time</label>
+              <label htmlFor="sched-time">Start Time</label>
               <input id="sched-time" type="time" value={time} onChange={e => setTime(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="sched-end">End Time</label>
+              <input id="sched-end" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </div>
             <div className="form-group">
               <label htmlFor="sched-notes">Notes</label>
@@ -155,19 +161,29 @@ function SchedulePage() {
         <p className="status-text">No scheduled classes yet.</p>
       ) : (
         <div className="attendance-table">
-          <div className="attendance-table-header" style={{ gridTemplateColumns: '1fr 1fr 1fr 2fr 80px' }}>
+          <div className="attendance-table-header" style={{ gridTemplateColumns: '1fr 70px 70px 70px 2fr 80px' }}>
             <span>Date</span>
-            <span>Time</span>
+            <span>Start</span>
+            <span>End</span>
+            <span>Dur.</span>
             <span>Class</span>
-            <span>Students</span>
             <span>Actions</span>
           </div>
-          {schedules.map(sc => (
-            <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 2fr 80px' }}>
+          {schedules.map(sc => {
+            const startParts = (sc.time || '').split(':').map(Number);
+            const endParts = (sc.end_time || '').split(':').map(Number);
+            let duration = '';
+            if (sc.end_time && sc.time) {
+              const totalMin = (endParts[0] * 60 + endParts[1]) - (startParts[0] * 60 + startParts[1]);
+              if (totalMin > 0) duration = `${Math.floor(totalMin / 60)}h${totalMin % 60 > 0 ? `${totalMin % 60}m` : ''}`;
+            }
+            return (
+            <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 70px 70px 70px 2fr 80px' }}>
               <span>{sc.date}</span>
               <span>{sc.time}</span>
+              <span>{sc.end_time || '—'}</span>
+              <span>{duration}</span>
               <span>{sc.class_name}</span>
-              <span>{sc.students.map(s => s.name).join(', ')}</span>
               <span className="attendance-row-actions">
                 <button className="btn-danger btn-xs" onClick={() => setShowDelete(sc.id)}>Del</button>
               </span>

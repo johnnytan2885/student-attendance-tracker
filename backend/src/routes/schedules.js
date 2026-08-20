@@ -4,7 +4,7 @@ const db = require('../db');
 
 // Create a scheduled class
 router.post('/', (req, res) => {
-  const { class_id, date, time, notes, student_ids } = req.body;
+  const { class_id, date, time, end_time, notes, student_ids } = req.body;
   if (!class_id || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: 'class_id and valid date (YYYY-MM-DD) are required' });
   }
@@ -22,8 +22,8 @@ router.post('/', (req, res) => {
   }
 
   const transaction = db.transaction(() => {
-    const result = db.prepare('INSERT INTO scheduled_class (class_id, date, time, notes) VALUES (?, ?, ?, ?)').run(
-      class_id, date, time, notes || null
+    const result = db.prepare('INSERT INTO scheduled_class (class_id, date, time, end_time, notes) VALUES (?, ?, ?, ?, ?)').run(
+      class_id, date, time, end_time || null, notes || null
     );
     const scId = result.lastInsertRowid;
     const insertStudent = db.prepare('INSERT INTO scheduled_class_student (scheduled_class_id, student_id) VALUES (?, ?)');

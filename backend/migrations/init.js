@@ -67,6 +67,7 @@ function initialize() {
       class_id INTEGER NOT NULL,
       date TEXT NOT NULL,
       time TEXT NOT NULL,
+      end_time TEXT,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (class_id) REFERENCES class(id) ON DELETE CASCADE

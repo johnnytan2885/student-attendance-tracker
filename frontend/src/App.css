@@ -860,6 +860,12 @@ label {
   min-width: 40px;
 }
 
+.schedule-card-duration {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
 .schedule-card-body {
   font-size: 14px;
 }
