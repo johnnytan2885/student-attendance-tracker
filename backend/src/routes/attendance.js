@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+// Check if a record exists for a student on a given date
+const checkExisting = db.prepare(
+  'SELECT id, status FROM attendance_record WHERE student_id = ? AND date = ?'
+);
+
+// Mark attendance (upsert: replace existing record for same student+date)
 router.post('/', (req, res) => {
   const { date, records } = req.body;
 
@@ -12,42 +18,62 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Records array is required' });
   }
 
-  const insertAttendance = db.prepare(
-    'INSERT INTO attendance_record (student_id, date, status) VALUES (?, ?, ?)'
-  );
-  const updateCredits = db.prepare(
-    'UPDATE student SET credits = credits + 1 WHERE id = ?'
-  );
   const checkStudent = db.prepare('SELECT id FROM student WHERE id = ?');
+  const upsertAttendance = db.prepare(
+    'INSERT INTO attendance_record (student_id, date, status) VALUES (?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, replacement_date = CASE WHEN excluded.status = \'present\' THEN NULL ELSE replacement_date END'
+  );
+  const addCredit = db.prepare('UPDATE student SET credits = credits + 1 WHERE id = ?');
+  const removeCredit = db.prepare('UPDATE student SET credits = MAX(0, credits - 1) WHERE id = ?');
 
   const transaction = db.transaction(() => {
-    let count = 0;
+    let created = 0;
+    let updated = 0;
     for (const record of records) {
       const { student_id, status } = record;
       if (!student_id || !status || !['present', 'absent'].includes(status)) {
-        throw new Error(`Invalid record: student_id=${student_id}, status=${status}`);
+        throw new Error('Invalid record: student_id=' + student_id + ', status=' + status);
       }
       const student = checkStudent.get(student_id);
       if (!student) {
-        throw new Error(`Student not found: ${student_id}`);
+        throw new Error('Student not found: ' + student_id);
       }
-      insertAttendance.run(student_id, date, status);
-      if (status === 'absent') {
-        updateCredits.run(student_id);
+
+      const existing = checkExisting.get(student_id, date);
+
+      if (existing) {
+        // Changing absent -> present: remove credit
+        if (existing.status === 'absent' && status === 'present') {
+          removeCredit.run(student_id);
+        }
+        // Changing present -> absent: add credit
+        if (existing.status === 'present' && status === 'absent') {
+          addCredit.run(student_id);
+        }
+        upsertAttendance.run(student_id, date, status);
+        updated++;
+      } else {
+        upsertAttendance.run(student_id, date, status);
+        if (status === 'absent') {
+          addCredit.run(student_id);
+        }
+        created++;
       }
-      count++;
     }
-    return count;
+    return { created, updated };
   });
 
   try {
-    const count = transaction();
-    res.status(201).json({ message: `${count} attendance records created`, count });
+    const result = transaction();
+    const msg = [];
+    if (result.created > 0) msg.push(result.created + ' created');
+    if (result.updated > 0) msg.push(result.updated + ' updated');
+    res.status(200).json({ message: msg.join(', '), ...result });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
+// Get attendance history for a student
 router.get('/student/:studentId', (req, res) => {
   const student = db.prepare('SELECT id FROM student WHERE id = ?').get(req.params.studentId);
   if (!student) return res.status(404).json({ error: 'Student not found' });
@@ -58,6 +84,62 @@ router.get('/student/:studentId', (req, res) => {
   res.json(records);
 });
 
+// Edit a single attendance record (change status)
+router.patch('/:id', (req, res) => {
+  const { status } = req.body;
+  if (!status || !['present', 'absent'].includes(status)) {
+    return res.status(400).json({ error: 'Status must be "present" or "absent"' });
+  }
+
+  const record = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id);
+  if (!record) return res.status(404).json({ error: 'Attendance record not found' });
+
+  if (record.status === status) {
+    return res.json(db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id));
+  }
+
+  const addCredit = db.prepare('UPDATE student SET credits = credits + 1 WHERE id = ?');
+  const removeCredit = db.prepare('UPDATE student SET credits = MAX(0, credits - 1) WHERE id = ?');
+
+  const transaction = db.transaction(() => {
+    if (record.status === 'absent' && status === 'present') {
+      removeCredit.run(record.student_id);
+      db.prepare('UPDATE attendance_record SET status = ?, replacement_date = NULL WHERE id = ?').run(status, req.params.id);
+    }
+    if (record.status === 'present' && status === 'absent') {
+      addCredit.run(record.student_id);
+      db.prepare('UPDATE attendance_record SET status = ? WHERE id = ?').run(status, req.params.id);
+    }
+  });
+
+  transaction();
+
+  const updated = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id);
+  const student = db.prepare('SELECT credits FROM student WHERE id = ?').get(record.student_id);
+  res.json({ attendance: updated, credits: student.credits });
+});
+
+// Delete a single attendance record (removes credit if absent)
+router.delete('/:id', (req, res) => {
+  const record = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id);
+  if (!record) return res.status(404).json({ error: 'Attendance record not found' });
+
+  const removeCredit = db.prepare('UPDATE student SET credits = MAX(0, credits - 1) WHERE id = ?');
+
+  const transaction = db.transaction(() => {
+    if (record.status === 'absent') {
+      removeCredit.run(record.student_id);
+    }
+    db.prepare('DELETE FROM attendance_record WHERE id = ?').run(req.params.id);
+  });
+
+  transaction();
+
+  const student = db.prepare('SELECT credits FROM student WHERE id = ?').get(record.student_id);
+  res.json({ message: 'Attendance record deleted', credits: student.credits });
+});
+
+// Set replacement class
 router.post('/replacement', (req, res) => {
   const { student_id, attendance_id, replacement_date } = req.body;
 
@@ -73,11 +155,19 @@ router.post('/replacement', (req, res) => {
   ).get(attendance_id, student_id);
   if (!attendance) return res.status(404).json({ error: 'Attendance record not found' });
 
+  if (attendance.status !== 'absent') {
+    return res.status(400).json({ error: 'Can only set replacement for absent records' });
+  }
   if (attendance.replacement_date) {
     return res.status(400).json({ error: 'Replacement already set for this attendance record' });
   }
   if (student.credits < 1) {
     return res.status(400).json({ error: 'Student has no credits to use' });
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (replacement_date <= today) {
+    return res.status(400).json({ error: 'Replacement date must be in the future' });
   }
 
   const transaction = db.transaction(() => {
@@ -90,6 +180,36 @@ router.post('/replacement', (req, res) => {
   const updated = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(attendance_id);
   const updatedStudent = db.prepare('SELECT credits FROM student WHERE id = ?').get(student_id);
   res.json({ attendance: updated, credits: updatedStudent.credits });
+});
+
+
+// Edit replacement date (only if date has not passed yet)
+router.patch('/:id/replacement', (req, res) => {
+  const { replacement_date } = req.body;
+  if (!replacement_date || !/^\d{4}-\d{2}-\d{2}$/.test(replacement_date)) {
+    return res.status(400).json({ error: 'Valid replacement_date (YYYY-MM-DD) is required' });
+  }
+
+  const record = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id);
+  if (!record) return res.status(404).json({ error: 'Attendance record not found' });
+  if (record.status !== 'absent') {
+    return res.status(400).json({ error: 'Can only set replacement for absent records' });
+  }
+  if (!record.replacement_date) {
+    return res.status(400).json({ error: 'No replacement currently set. Use the replacement endpoint instead.' });
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (record.replacement_date <= today) {
+    return res.status(400).json({ error: 'Cannot edit a replacement date that has already passed or is today' });
+  }
+  if (replacement_date <= today) {
+    return res.status(400).json({ error: 'New replacement date must be in the future' });
+  }
+
+  db.prepare('UPDATE attendance_record SET replacement_date = ? WHERE id = ?').run(replacement_date, req.params.id);
+  const updated = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id);
+  res.json({ attendance: updated });
 });
 
 module.exports = router;

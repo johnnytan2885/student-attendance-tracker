@@ -6,6 +6,9 @@ import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import StudentProfile from './pages/StudentProfile.jsx';
 import AttendanceForm from './pages/AttendanceForm.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
+import ClassList from './pages/ClassList.jsx';
+import ClassDetail from './pages/ClassDetail.jsx';
 import { getToken, clearToken, getMe } from './api/client.js';
 
 function AuthGuard({ children }) {
@@ -89,6 +92,30 @@ function App() {
             }
           />
           <Route path="/" element={<RootRedirect />} />
+          <Route
+            path="/reset-password"
+            element={
+              <AuthGuard>
+                <ResetPasswordPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/classes"
+            element={
+              <AuthGuard>
+                <ClassList />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/classes/:id"
+            element={
+              <AuthGuard>
+                <ClassDetail />
+              </AuthGuard>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

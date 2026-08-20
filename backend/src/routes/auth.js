@@ -47,6 +47,26 @@ router.post('/change-password', requireAuth, (req, res) => {
   res.json({ message: 'Password changed successfully' });
 });
 
+router.post('/reset-password', requireAuth, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  }
+
+  const admin = db.prepare('SELECT * FROM admin WHERE id = ?').get(req.adminId);
+  const valid = bcrypt.compareSync(currentPassword, admin.password_hash);
+  if (!valid) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  const hash = bcrypt.hashSync(newPassword, 10);
+  db.prepare('UPDATE admin SET password_hash = ? WHERE id = ?').run(hash, req.adminId);
+  res.json({ message: 'Password reset successfully' });
+});
+
 router.post('/logout', requireAuth, (req, res) => {
   destroySession(req.sessionToken);
   res.json({ message: 'Logged out' });

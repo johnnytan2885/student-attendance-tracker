@@ -30,6 +30,36 @@ function initialize() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_student_date
+      ON attendance_record(student_id, date);
+
+    CREATE TABLE IF NOT EXISTS class (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS class_stage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (class_id) REFERENCES class(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS class_student (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_id INTEGER NOT NULL,
+      student_id INTEGER NOT NULL,
+      stage_id INTEGER,
+      FOREIGN KEY (class_id) REFERENCES class(id) ON DELETE CASCADE,
+      FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE,
+      FOREIGN KEY (stage_id) REFERENCES class_stage(id) ON DELETE SET NULL,
+      UNIQUE(class_id, student_id)
+    );
   `);
 
   const existing = db.prepare('SELECT id FROM admin WHERE username = ?').get(process.env.ADMIN_USERNAME || 'admin');

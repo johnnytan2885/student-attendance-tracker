@@ -18,6 +18,8 @@ function Navbar({ onLogout }) {
           <div className="navbar-links">
             <Link to="/dashboard" className="nav-link">Students</Link>
             <Link to="/attendance" className="nav-link">Attendance</Link>
+            <Link to="/classes" className="nav-link">Classes</Link>
+            <Link to="/reset-password" className="nav-link">Reset Password</Link>
             <button className="btn-logout" onClick={onLogout}>Logout</button>
           </div>
         )}

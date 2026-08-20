@@ -6,7 +6,7 @@
 - Build shape: Browser-local tool (trainer-approved backend/database expansion)
 - Shape confirmation: Confirmed
 - Current KDBM Lite stage: Shipped
-- Current phase: Complete
+- Current phase: Complete — Post-launch features added
 - Current work card: `work-cards/00-setup-gate.md`
 
 ## Completed work cards
@@ -61,7 +61,7 @@
 - GitHub: https://github.com/johnnytan2885/student-attendance-tracker
 - Deployment: Run locally — backend (port 3001) + frontend (port 5173)
 - Proof: Git committed, push ready from local terminal
-- Build: Work Card 10 complete — Full proof ladder passed, state handling audited and fixed, accessibility verified
+- Build: Production — all features + class management, calendar, reset password verified
 
 ## Next instruction for AI
 

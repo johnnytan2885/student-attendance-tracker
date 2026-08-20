@@ -53,6 +53,13 @@ export async function logout() {
   return apiFetch('/api/auth/logout', { method: 'POST' });
 }
 
+export async function resetPassword(currentPassword, newPassword) {
+  return apiFetch('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
 export async function getMe() {
   return apiFetch('/api/auth/me');
 }
@@ -99,9 +106,78 @@ export async function getStudentAttendance(studentId) {
   return apiFetch(`/api/attendance/student/${studentId}`);
 }
 
+export async function editReplacementDate(attendanceId, replacementDate) {
+  return apiFetch(`/api/attendance/${attendanceId}/replacement`, {
+    method: 'PATCH',
+    body: JSON.stringify({ replacement_date: replacementDate }),
+  });
+}
+
+export async function editAttendance(attendanceId, status) {
+  return apiFetch(`/api/attendance/${attendanceId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function deleteAttendance(attendanceId) {
+  return apiFetch(`/api/attendance/${attendanceId}`, { method: 'DELETE' });
+}
+
 export async function setReplacement(studentId, attendanceId, replacementDate) {
   return apiFetch('/api/attendance/replacement', {
     method: 'POST',
     body: JSON.stringify({ student_id: studentId, attendance_id: attendanceId, replacement_date: replacementDate }),
   });
+}
+
+// --- Classes ---
+
+export async function getClasses(showAll) {
+  const url = showAll ? '/api/classes?showAll=true' : '/api/classes';
+  return apiFetch(url);
+}
+
+export async function getClass(id) {
+  return apiFetch(`/api/classes/${id}`);
+}
+
+export async function createClass(data) {
+  return apiFetch('/api/classes', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateClass(id, data) {
+  return apiFetch(`/api/classes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteClass(id) {
+  return apiFetch(`/api/classes/${id}`, { method: 'DELETE' });
+}
+
+export async function createStage(classId, name) {
+  return apiFetch(`/api/classes/${classId}/stages`, { method: 'POST', body: JSON.stringify({ name }) });
+}
+
+export async function updateStage(stageId, name) {
+  return apiFetch(`/api/classes/stages/${stageId}`, { method: 'PUT', body: JSON.stringify({ name }) });
+}
+
+export async function deleteStage(stageId) {
+  return apiFetch(`/api/classes/stages/${stageId}`, { method: 'DELETE' });
+}
+
+export async function getAvailableStudents(classId) {
+  return apiFetch(`/api/classes/${classId}/available-students`);
+}
+
+export async function assignStudent(classId, studentId) {
+  return apiFetch(`/api/classes/${classId}/students`, { method: 'POST', body: JSON.stringify({ student_id: studentId }) });
+}
+
+export async function removeStudent(classId, studentId) {
+  return apiFetch(`/api/classes/${classId}/students/${studentId}`, { method: 'DELETE' });
+}
+
+export async function setStudentStage(classId, studentId, stageId) {
+  return apiFetch(`/api/classes/${classId}/students/${studentId}/stage`, { method: 'PATCH', body: JSON.stringify({ stage_id: stageId }) });
 }
