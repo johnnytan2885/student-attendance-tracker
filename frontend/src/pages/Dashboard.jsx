@@ -2,30 +2,30 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSchedulesRange } from '../api/client.js';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function Dashboard() {
-  const navigate = useNavigate();
-  const [schedules, setSchedules] = useState([]);
-  const [schedulesByDate, setSchedulesByDate] = useState({});
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [month, setMonth] = useState(new Date().getMonth());
-  const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(null);
+  var navigate = useNavigate();
+  var [schedules, setSchedules] = useState([]);
+  var [schedulesByDate, setSchedulesByDate] = useState({});
+  var [year, setYear] = useState(new Date().getFullYear());
+  var [month, setMonth] = useState(new Date().getMonth());
+  var [loading, setLoading] = useState(true);
+  var [selectedDay, setSelectedDay] = useState(null);
 
-  useEffect(() => { loadMonth(); }, [year, month]);
+  useEffect(function() { loadMonth(); }, [year, month]);
 
   async function loadMonth() {
     setLoading(true);
-    const pad = n => String(n).padStart(2, '0');
-    const first = year + '-' + pad(month + 1) + '-01';
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const last = year + '-' + pad(month + 1) + '-' + pad(lastDay);
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    var first = year + '-' + pad(month + 1) + '-01';
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    var last = year + '-' + pad(month + 1) + '-' + pad(lastDay);
     try {
-      const data = await getSchedulesRange(first, last);
+      var data = await getSchedulesRange(first, last);
       setSchedules(data);
-      const byDate = {};
+      var byDate = {};
       data.forEach(function(sc) {
         if (!byDate[sc.date]) byDate[sc.date] = [];
         byDate[sc.date].push(sc);
@@ -38,9 +38,9 @@ function Dashboard() {
     }
   }
 
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date().toISOString().slice(0, 10);
+  var firstDay = new Date(year, month, 1).getDay();
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var todayStr = new Date().toISOString().slice(0, 10);
 
   function prevMonth() {
     if (month === 0) { setYear(function(y) { return y - 1; }); setMonth(11); }
@@ -58,38 +58,35 @@ function Dashboard() {
     return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
   }
 
-  const cells = [];
-  for (let i = 0; i < firstDay; i++) cells.push(<div key={'blank-' + i} className="cal-cell cal-blank" />);
-  for (let d = 1; d <= daysInMonth; d++) {
-    const ds = dateStr(d);
-    const daySchedules = schedulesByDate[ds] || [];
-    const isToday = ds === today;
-    const isSelected = selectedDay === ds;
-    let cls = 'cal-cell cal-day-cell';
+  var cells = [];
+  for (var i = 0; i < firstDay; i++) cells.push(<div key={'blank-' + i} className="cal-cell cal-blank" />);
+  for (var d = 1; d <= daysInMonth; d++) {
+    var ds = dateStr(d);
+    var daySchedules = schedulesByDate[ds] || [];
+    var isToday = ds === todayStr;
+    var isSelected = selectedDay === ds;
+    var cls = 'cal-cell cal-day-cell';
     if (daySchedules.length > 0) cls += ' cal-has-event';
     if (isToday) cls += ' cal-today';
     if (isSelected) cls += ' cal-selected';
     cells.push(
-      <div
-        key={d}
-        className={cls}
-        onClick={function() { setSelectedDay(isSelected ? null : ds); }}
-      >
+      <div key={d} className={cls} onClick={function() { setSelectedDay(isSelected ? null : ds); }}>
         {d}
         {daySchedules.length > 0 && <span className="cal-dot" />}
       </div>
     );
   }
 
-  const selectedSchedules = selectedDay ? (schedulesByDate[selectedDay] || []) : [];
+  var selectedSchedules = selectedDay ? (schedulesByDate[selectedDay] || []) : [];
 
-  const sidebarCards = [];
-  for (const sc of selectedSchedules) {
-    const partsStart = (sc.time || '').split(':');
-    const partsEnd = (sc.end_time || '').split(':');
-    let durStr = '';
+  var sidebarCards = [];
+  for (var si = 0; si < selectedSchedules.length; si++) {
+    var sc = selectedSchedules[si];
+    var partsStart = (sc.time || '').split(':');
+    var partsEnd = (sc.end_time || '').split(':');
+    var durStr = '';
     if (sc.time && sc.end_time) {
-      const min = (Number(partsEnd[0]) * 60 + Number(partsEnd[1])) - (Number(partsStart[0]) * 60 + Number(partsStart[1]));
+      var min = (Number(partsEnd[0]) * 60 + Number(partsEnd[1])) - (Number(partsStart[0]) * 60 + Number(partsStart[1]));
       if (min > 0) {
         durStr = ' (' + Math.floor(min / 60) + 'h';
         if (min % 60 > 0) durStr += min % 60 + 'm';
@@ -101,13 +98,75 @@ function Dashboard() {
         <div className="schedule-card-time">{sc.time}</div>
         <div className="schedule-card-body">
           <strong>{sc.class_name}</strong>
-          <div className="schedule-card-duration">
-            {sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}
-          </div>
-          <div className="schedule-card-students">
-            {sc.students.map(function(s) { return s.name; }).join(', ')}
-          </div>
+          <div className="schedule-card-duration">{sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}</div>
+          <div className="schedule-card-students">{sc.students.map(function(s) { return s.name; }).join(', ')}</div>
           {sc.notes && <div className="profile-detail">{sc.notes}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  // Build today's timeline
+  var todaySchedules = schedulesByDate[todayStr] || [];
+  var hourlySlots = [];
+  for (var h = 0; h < 24; h++) {
+    var hourLabel = String(h).padStart(2, '0') + ':00';
+    var blocksInHour = [];
+
+    for (var ti = 0; ti < todaySchedules.length; ti++) {
+      var ts = todaySchedules[ti];
+      var startH = Number((ts.time || '00:00').split(':')[0]);
+      var startM = Number((ts.time || '00:00').split(':')[1]);
+      var endH = ts.end_time ? Number(ts.end_time.split(':')[0]) : (startH + 1);
+      var endM = ts.end_time ? Number(ts.end_time.split(':')[1]) : startM;
+
+      // Check if this class overlaps with this hour slot
+      var slotStart = h * 60;
+      var slotEnd = (h + 1) * 60;
+      var classStart = startH * 60 + startM;
+      var classEnd = endH * 60 + endM;
+
+      if (classStart < slotEnd && classEnd > slotStart) {
+        blocksInHour.push(ts);
+      }
+    }
+
+    hourlySlots.push(
+      <div key={h} className="timeline-hour">
+        <div className="timeline-label">{hourLabel}</div>
+        <div className="timeline-track">
+          {blocksInHour.length === 0 && <div className="timeline-empty" />}
+          {blocksInHour.map(function(sched) {
+            var sH = Number((sched.time || '00:00').split(':')[0]);
+            var sM = Number((sched.time || '00:00').split(':')[1]);
+            var eH = sched.end_time ? Number(sched.end_time.split(':')[0]) : (sH + 1);
+            var eM = sched.end_time ? Number(sched.end_time.split(':')[1]) : sM;
+            var totalStart = sH * 60 + sM;
+            var totalEnd = eH * 60 + eM;
+            var slotStartMin = h * 60;
+            var slotEndMin = (h + 1) * 60;
+            var overlapStart = Math.max(totalStart, slotStartMin);
+            var overlapEnd = Math.min(totalEnd, slotEndMin);
+            var overlapMinutes = overlapEnd - overlapStart;
+            var percent = (overlapMinutes / 60) * 100;
+            var offsetMin = overlapStart - slotStartMin;
+            var offsetPercent = (offsetMin / 60) * 100;
+
+            return (
+              <div
+                key={sched.id}
+                className="timeline-block"
+                style={{
+                  left: offsetPercent + '%',
+                  width: percent + '%'
+                }}
+                title={sched.class_name + ': ' + sched.students.map(function(s) { return s.name; }).join(', ')}
+              >
+                <span className="timeline-block-text">{sched.class_name}</span>
+                <span className="timeline-block-students">{sched.students.map(function(s) { return s.name; }).join(', ')}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -118,9 +177,16 @@ function Dashboard() {
       <div className="dashboard-header">
         <h1 className="dashboard-title">Dashboard</h1>
         <div className="dashboard-actions">
-          <button className="btn-primary btn-sm" onClick={function() { navigate('/dashboard'); }}>Students</button>
+          <button className="btn-primary btn-sm" onClick={function() { navigate('/students'); }}>Students</button>
           <button className="btn-secondary btn-sm" onClick={function() { navigate('/attendance'); }}>Mark Attendance</button>
           <button className="btn-secondary btn-sm" onClick={function() { navigate('/schedule'); }}>Schedule</button>
+        </div>
+      </div>
+
+      <div className="card timeline-card">
+        <h3 className="section-title">Today - {todayStr}</h3>
+        <div className="timeline-container">
+          {hourlySlots}
         </div>
       </div>
 
@@ -138,7 +204,6 @@ function Dashboard() {
         </div>
 
         <div className="dashboard-sidebar">
-          {loading && <p className="status-text">Loading...</p>}
           {!loading && !selectedDay && (
             <div className="card" style={{ padding: 20, textAlign: 'center' }}>
               <p className="status-text" style={{ fontSize: 15 }}>Click a date to see scheduled classes</p>
@@ -147,12 +212,8 @@ function Dashboard() {
           {!loading && selectedDay && (
             <div className="card" style={{ padding: 16 }}>
               <h3 className="section-title">{selectedDay}</h3>
-              {sidebarCards.length === 0 ? (
-                <p className="status-text">No classes scheduled</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {sidebarCards}
-                </div>
+              {sidebarCards.length === 0 ? (<p className="status-text">No classes scheduled</p>) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{sidebarCards}</div>
               )}
             </div>
           )}

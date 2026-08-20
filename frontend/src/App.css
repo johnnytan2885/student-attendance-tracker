@@ -789,6 +789,90 @@ label {
 
 
 
+
+
+/* Timeline */
+.timeline-card {
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.timeline-hour {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  min-height: 32px;
+}
+
+.timeline-hour:last-child {
+  border-bottom: none;
+}
+
+.timeline-label {
+  width: 50px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  padding: 6px 8px;
+  text-align: right;
+  border-right: 1px solid var(--color-border);
+  background: #f9fafb;
+}
+
+.timeline-track {
+  flex: 1;
+  position: relative;
+  min-height: 32px;
+}
+
+.timeline-empty {
+  height: 100%;
+}
+
+.timeline-block {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  padding: 1px 6px;
+  overflow: hidden;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 4px;
+}
+
+.timeline-block-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e40af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.timeline-block-students {
+  font-size: 10px;
+  color: #3b82f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+
 /* Dashboard Layout */
 .dashboard-layout {
   display: flex;
