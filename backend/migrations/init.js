@@ -27,6 +27,7 @@ function initialize() {
       date TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('present', 'absent')),
       replacement_date TEXT,
+      time TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE
     );
@@ -59,6 +60,25 @@ function initialize() {
       FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE,
       FOREIGN KEY (stage_id) REFERENCES class_stage(id) ON DELETE SET NULL,
       UNIQUE(class_id, student_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS scheduled_class (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (class_id) REFERENCES class(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS scheduled_class_student (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scheduled_class_id INTEGER NOT NULL,
+      student_id INTEGER NOT NULL,
+      FOREIGN KEY (scheduled_class_id) REFERENCES scheduled_class(id) ON DELETE CASCADE,
+      FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE,
+      UNIQUE(scheduled_class_id, student_id)
     );
   `);
 

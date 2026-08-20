@@ -787,6 +787,98 @@ label {
   vertical-align: middle;
 }
 
+
+
+/* Dashboard Layout */
+.dashboard-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.dashboard-calendar-card {
+  flex: 1;
+  padding: 16px;
+}
+
+.dashboard-sidebar {
+  width: 340px;
+  flex-shrink: 0;
+}
+
+.cal-day-cell {
+  cursor: pointer;
+  position: relative;
+  font-size: 13px;
+}
+
+.cal-day-cell:hover {
+  background: #f3f4f6;
+}
+
+.cal-today {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.cal-selected {
+  background: #e0e7ff;
+  font-weight: 700;
+}
+
+.cal-has-event {
+  font-weight: 600;
+}
+
+.cal-dot {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.schedule-card-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.schedule-card-item:last-child {
+  border-bottom: none;
+}
+
+.schedule-card-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  white-space: nowrap;
+  min-width: 40px;
+}
+
+.schedule-card-body {
+  font-size: 14px;
+}
+
+.schedule-card-students {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 840px) {
+  .dashboard-layout {
+    flex-direction: column;
+  }
+  .dashboard-sidebar {
+    width: 100%;
+  }
+}
+
+
 @media (max-width: 640px) {
   .attendance-table-header,
   .attendance-table-row {

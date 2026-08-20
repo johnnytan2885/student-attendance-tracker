@@ -3,6 +3,7 @@ import { getStudents, getClasses, markAttendance } from '../api/client.js';
 
 function AttendanceForm() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [students, setStudents] = useState([]);
@@ -64,7 +65,7 @@ function AttendanceForm() {
     setError('');
     setSuccess('');
     try {
-      const payload = selectedIds.map(id => ({ student_id: id, status }));
+      const payload = selectedIds.map(id => ({ student_id: id, status, time }));
       const result = await markAttendance(date, payload);
       setSuccess(`Attendance saved for ${selectedIds.length} student(s) on ${date}`);
     } catch (err) {
@@ -94,6 +95,11 @@ function AttendanceForm() {
           <div className="form-group">
             <label htmlFor="attendance-date">Date</label>
             <input id="attendance-date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="attendance-time">Time</label>
+            <input id="attendance-time" type="time" value={time} onChange={e => setTime(e.target.value)} required />
           </div>
 
           <div className="form-group">

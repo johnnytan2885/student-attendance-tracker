@@ -20,7 +20,7 @@ router.post('/', (req, res) => {
 
   const checkStudent = db.prepare('SELECT id FROM student WHERE id = ?');
   const upsertAttendance = db.prepare(
-    'INSERT INTO attendance_record (student_id, date, status) VALUES (?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, replacement_date = CASE WHEN excluded.status = \'present\' THEN NULL ELSE replacement_date END'
+    'INSERT INTO attendance_record (student_id, date, status, time) VALUES (?, ?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, time = excluded.time, replacement_date = CASE WHEN excluded.status = \'present\' THEN NULL ELSE replacement_date END'
   );
   const addCredit = db.prepare('UPDATE student SET credits = credits + 1 WHERE id = ?');
   const removeCredit = db.prepare('UPDATE student SET credits = MAX(0, credits - 1) WHERE id = ?');
@@ -29,7 +29,7 @@ router.post('/', (req, res) => {
     let created = 0;
     let updated = 0;
     for (const record of records) {
-      const { student_id, status } = record;
+      const { student_id, status, time } = record;
       if (!student_id || !status || !['present', 'absent'].includes(status)) {
         throw new Error('Invalid record: student_id=' + student_id + ', status=' + status);
       }
@@ -49,10 +49,10 @@ router.post('/', (req, res) => {
         if (existing.status === 'present' && status === 'absent') {
           addCredit.run(student_id);
         }
-        upsertAttendance.run(student_id, date, status);
+        upsertAttendance.run(student_id, date, status, time || null);
         updated++;
       } else {
-        upsertAttendance.run(student_id, date, status);
+        upsertAttendance.run(student_id, date, status, time || null);
         if (status === 'absent') {
           addCredit.run(student_id);
         }
@@ -86,7 +86,7 @@ router.get('/student/:studentId', (req, res) => {
 
 // Edit a single attendance record (change status)
 router.patch('/:id', (req, res) => {
-  const { status } = req.body;
+  const { status, time } = req.body;
   if (!status || !['present', 'absent'].includes(status)) {
     return res.status(400).json({ error: 'Status must be "present" or "absent"' });
   }
@@ -104,11 +104,11 @@ router.patch('/:id', (req, res) => {
   const transaction = db.transaction(() => {
     if (record.status === 'absent' && status === 'present') {
       removeCredit.run(record.student_id);
-      db.prepare('UPDATE attendance_record SET status = ?, replacement_date = NULL WHERE id = ?').run(status, req.params.id);
+      db.prepare('UPDATE attendance_record SET status = ?, time = ?, replacement_date = NULL WHERE id = ?').run(status, time || null, req.params.id);
     }
     if (record.status === 'present' && status === 'absent') {
       addCredit.run(record.student_id);
-      db.prepare('UPDATE attendance_record SET status = ? WHERE id = ?').run(status, req.params.id);
+      db.prepare('UPDATE attendance_record SET status = ?, time = ? WHERE id = ?').run(status, time || null, req.params.id);
     }
   });
 

@@ -1,123 +1,140 @@
 import { useState, useEffect } from 'react';
-import Modal from '../components/Modal.jsx';
-import StudentCard from '../components/StudentCard.jsx';
-import EmptyState from '../components/EmptyState.jsx';
-import { getStudents, createStudent } from '../api/client.js';
+import { useNavigate } from 'react-router-dom';
+import { getSchedulesRange } from '../api/client.js';
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function Dashboard() {
-  const [students, setStudents] = useState([]);
+  const navigate = useNavigate();
+  const [schedules, setSchedules] = useState([]);
+  const [schedulesByDate, setSchedulesByDate] = useState({});
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(new Date().getMonth());
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [addName, setAddName] = useState('');
-  const [addEmail, setAddEmail] = useState('');
-  const [addNotes, setAddNotes] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
 
-  async function loadStudents() {
+  useEffect(() => { loadMonth(); }, [year, month]);
+
+  async function loadMonth() {
     setLoading(true);
-    setError('');
+    const first = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const last = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     try {
-      const data = await getStudents(showArchived);
-      setStudents(data);
+      const data = await getSchedulesRange(first, last);
+      setSchedules(data);
+      const byDate = {};
+      data.forEach(sc => {
+        if (!byDate[sc.date]) byDate[sc.date] = [];
+        byDate[sc.date].push(sc);
+      });
+      setSchedulesByDate(byDate);
     } catch (err) {
-      setError(err.message);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { loadStudents(); }, [showArchived]);
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date().toISOString().slice(0, 10);
 
-  function handleUpdated(updated) {
-    setStudents(prev => prev.map(s => s.id === updated.id ? updated : s));
+  function prevMonth() {
+    if (month === 0) { setYear(y => y - 1); setMonth(11); }
+    else setMonth(m => m - 1);
+    setSelectedDay(null);
   }
 
-  function handleDeleted(id) {
-    setStudents(prev => prev.filter(s => s.id !== id));
+  function nextMonth() {
+    if (month === 11) { setYear(y => y + 1); setMonth(0); }
+    else setMonth(m => m + 1);
+    setSelectedDay(null);
   }
 
-  async function handleAdd(e) {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      const student = await createStudent({ name: addName, email: addEmail || null, notes: addNotes || null });
-      setStudents(prev => [...prev, student]);
-      setShowAdd(false);
-      setAddName('');
-      setAddEmail('');
-      setAddNotes('');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+  function dateStr(d) {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(<div key={`blank-${i}`} className="cal-cell cal-blank" />);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = dateStr(d);
+    const daySchedules = schedulesByDate[ds] || [];
+    const isToday = ds === today;
+    const isSelected = selectedDay === ds;
+    cells.push(
+      <div
+        key={d}
+        className={`cal-cell cal-day-cell ${daySchedules.length > 0 ? 'cal-has-event' : ''} ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}`}
+        onClick={() => setSelectedDay(isSelected ? null : ds)}
+        title={daySchedules.map(s => `${s.time} ${s.class_name}`).join('\n')}
+      >
+        {d}
+        {daySchedules.length > 0 && <span className="cal-dot" />}
+      </div>
+    );
+  }
+
+  const selectedSchedules = selectedDay ? (schedulesByDate[selectedDay] || []) : [];
 
   return (
     <div>
       <div className="dashboard-header">
-        <h1 className="dashboard-title">Students</h1>
+        <h1 className="dashboard-title">Dashboard</h1>
         <div className="dashboard-actions">
-          <label className="toggle-label">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={e => setShowArchived(e.target.checked)}
-            />
-            Show archived
-          </label>
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>Add Student</button>
+          <button className="btn-primary btn-sm" onClick={() => navigate('/dashboard')}>Students</button>
+          <button className="btn-secondary btn-sm" onClick={() => navigate('/attendance')}>Mark Attendance</button>
+          <button className="btn-secondary btn-sm" onClick={() => navigate('/schedule')}>Schedule</button>
         </div>
       </div>
 
-      {loading && <p className="status-text">Loading students...</p>}
-      {error && <p className="form-error">{error}</p>}
+      <div className="dashboard-layout">
+        <div className="card dashboard-calendar-card">
+          <div className="cal-header">
+            <button className="cal-nav" onClick={prevMonth}>&lsaquo;</button>
+            <span className="cal-title" style={{ fontSize: 16 }}>{MONTHS[month]} {year}</span>
+            <button className="cal-nav" onClick={nextMonth}>&rsaquo;</button>
+          </div>
+          <div className="cal-grid" style={{ gap: 4 }}>
+            {DAYS.map(d => <div key={d} className="cal-day-label">{d}</div>)}
+            {cells}
+          </div>
+        </div>
 
-      {!loading && !error && students.length === 0 && (
-        <EmptyState
-          message={showArchived ? 'No students found.' : 'No students yet.'}
-          actionLabel={showArchived ? undefined : 'Add your first student'}
-          onAction={showArchived ? undefined : () => setShowAdd(true)}
-        />
-      )}
-
-      <div className="student-grid">
-        {students.map(student => (
-          <StudentCard
-            key={student.id}
-            student={student}
-            onUpdated={handleUpdated}
-            onDeleted={handleDeleted}
-          />
-        ))}
+        <div className="dashboard-sidebar">
+          {loading && <p className="status-text">Loading...</p>}
+          {!loading && !selectedDay && (
+            <div className="card" style={{ padding: 20, textAlign: 'center' }}>
+              <p className="status-text" style={{ fontSize: 15 }}>Click a date to see scheduled classes</p>
+            </div>
+          )}
+          {!loading && selectedDay && (
+            <div className="card" style={{ padding: 16 }}>
+              <h3 className="section-title">{selectedDay}</h3>
+              {selectedSchedules.length === 0 ? (
+                <p className="status-text">No classes scheduled</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {selectedSchedules.map(sc => (
+                    <div key={sc.id} className="schedule-card-item">
+                      <div className="schedule-card-time">{sc.time}</div>
+                      <div className="schedule-card-body">
+                        <strong>{sc.class_name}</strong>
+                        <div className="schedule-card-students">
+                          {sc.students.map(s => s.name).join(', ')}
+                        </div>
+                        {sc.notes && <div className="profile-detail">{sc.notes}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-
-      {showAdd && (
-        <Modal title="Add Student" onClose={() => setShowAdd(false)}>
-          <form onSubmit={handleAdd}>
-            <div className="form-group">
-              <label htmlFor="add-name">Name *</label>
-              <input id="add-name" value={addName} onChange={e => setAddName(e.target.value)} required autoFocus />
-            </div>
-            <div className="form-group">
-              <label htmlFor="add-email">Email</label>
-              <input id="add-email" type="email" value={addEmail} onChange={e => setAddEmail(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label htmlFor="add-notes">Notes</label>
-              <input id="add-notes" value={addNotes} onChange={e => setAddNotes(e.target.value)} />
-            </div>
-            {error && <p className="form-error">{error}</p>}
-            <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Adding...' : 'Add'}</button>
-            </div>
-          </form>
-        </Modal>
-      )}
     </div>
   );
 }

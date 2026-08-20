@@ -182,3 +182,21 @@ export async function removeStudent(classId, studentId) {
 export async function setStudentStage(classId, studentId, stageId) {
   return apiFetch(`/api/classes/${classId}/students/${studentId}/stage`, { method: 'PATCH', body: JSON.stringify({ stage_id: stageId }) });
 }
+
+// --- Schedules ---
+
+export async function createSchedule(data) {
+  return apiFetch('/api/schedules', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getSchedules() {
+  return apiFetch('/api/schedules');
+}
+
+export async function getSchedulesRange(from, to) {
+  return apiFetch(`/api/schedules/range?from=${from}&to=${to}`);
+}
+
+export async function deleteSchedule(id) {
+  return apiFetch(`/api/schedules/${id}`, { method: 'DELETE' });
+}

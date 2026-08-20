@@ -4,11 +4,13 @@ import Navbar from './components/Navbar.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import StudentList from './pages/StudentList.jsx';
 import StudentProfile from './pages/StudentProfile.jsx';
 import AttendanceForm from './pages/AttendanceForm.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import ClassList from './pages/ClassList.jsx';
 import ClassDetail from './pages/ClassDetail.jsx';
+import SchedulePage from './pages/SchedulePage.jsx';
 import { getToken, clearToken, getMe } from './api/client.js';
 
 function AuthGuard({ children }) {
@@ -76,6 +78,14 @@ function App() {
             }
           />
           <Route
+            path="/students"
+            element={
+              <AuthGuard>
+                <StudentList />
+              </AuthGuard>
+            }
+          />
+          <Route
             path="/students/:id"
             element={
               <AuthGuard>
@@ -113,6 +123,14 @@ function App() {
             element={
               <AuthGuard>
                 <ClassDetail />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <AuthGuard>
+                <SchedulePage />
               </AuthGuard>
             }
           />
