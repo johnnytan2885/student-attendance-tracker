@@ -1,21 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
 function AttendanceCalendar({ attendanceRecords }) {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  if (isMobile) return null;
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -50,19 +40,19 @@ function AttendanceCalendar({ attendanceRecords }) {
   }
 
   return (
-    <div className="card attendance-calendar">
+    <div className="attendance-calendar">
       <div className="cal-header">
-        <button className="cal-nav" onClick={prevMonth}>&larr;</button>
-        <span className="cal-title">{MONTHS[month]} {year}</span>
-        <button className="cal-nav" onClick={nextMonth}>&rarr;</button>
+        <button className="cal-nav" onClick={prevMonth}>&lsaquo;</button>
+        <span className="cal-title">{MONTHS[month].slice(0, 3)} {year}</span>
+        <button className="cal-nav" onClick={nextMonth}>&rsaquo;</button>
       </div>
       <div className="cal-grid">
         {DAYS.map(d => <div key={d} className="cal-day-label">{d}</div>)}
         {cells}
       </div>
       <div className="cal-legend">
-        <span><span className="legend-dot cal-present" /> Present</span>
-        <span><span className="legend-dot cal-absent" /> Absent</span>
+        <span><span className="legend-dot cal-present" /> P</span>
+        <span><span className="legend-dot cal-absent" /> A</span>
       </div>
     </div>
   );

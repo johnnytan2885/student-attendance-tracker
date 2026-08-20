@@ -4,16 +4,39 @@ const db = require('../db');
 
 router.get('/', (req, res) => {
   const showAll = req.query.showAll === 'true';
-  const students = showAll
-    ? db.prepare('SELECT * FROM student ORDER BY name').all()
-    : db.prepare('SELECT * FROM student WHERE active = 1 ORDER BY name').all();
+  const classId = req.query.class_id;
+  let students;
+  if (classId) {
+    students = db.prepare(
+      `SELECT s.*, cs.stage_id, cs_st.name as stage_name, c.name as class_name
+       FROM student s
+       JOIN class_student cs ON cs.student_id = s.id
+       JOIN class c ON c.id = cs.class_id
+       LEFT JOIN class_stage cs_st ON cs_st.id = cs.stage_id
+       WHERE cs.class_id = ? AND s.active = 1
+       ORDER BY s.name`
+    ).all(classId);
+  } else {
+    students = showAll
+      ? db.prepare('SELECT * FROM student ORDER BY name').all()
+      : db.prepare('SELECT * FROM student WHERE active = 1 ORDER BY name').all();
+  }
   res.json(students);
 });
 
 router.get('/:id', (req, res) => {
   const student = db.prepare('SELECT * FROM student WHERE id = ?').get(req.params.id);
   if (!student) return res.status(404).json({ error: 'Student not found' });
-  res.json(student);
+
+  const classes = db.prepare(
+    `SELECT c.id, c.name, c.description, cs.stage_id, cs_st.name as stage_name
+     FROM class_student cs
+     JOIN class c ON c.id = cs.class_id
+     LEFT JOIN class_stage cs_st ON cs_st.id = cs.stage_id
+     WHERE cs.student_id = ?`
+  ).all(req.params.id);
+
+  res.json({ ...student, classes });
 });
 
 router.post('/', (req, res) => {

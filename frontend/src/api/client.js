@@ -64,8 +64,9 @@ export async function getMe() {
   return apiFetch('/api/auth/me');
 }
 
-export async function getStudents(showAll = false) {
-  const url = showAll ? '/api/students?showAll=true' : '/api/students';
+export async function getStudents(showAll = false, classId = null) {
+  let url = showAll ? '/api/students?showAll=true' : '/api/students';
+  if (classId) url += (showAll ? '&' : '?') + `class_id=${classId}`;
   return apiFetch(url);
 }
 

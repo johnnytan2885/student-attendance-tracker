@@ -25,11 +25,9 @@ function StudentProfile() {
   const [replacementDate, setReplacementDate] = useState('');
   const [replacing, setReplacing] = useState(false);
 
-  // Edit attendance state
   const [showEditAttendance, setShowEditAttendance] = useState(null);
   const [editAttendanceStatus, setEditAttendanceStatus] = useState('');
 
-  // Delete attendance state
   const [showDeleteAttendance, setShowDeleteAttendance] = useState(null);
 
   useEffect(() => { loadData(); }, [id]);
@@ -148,76 +146,85 @@ function StudentProfile() {
         &larr; Back to Students
       </button>
 
-      <div className="card profile-header">
-        <div className="profile-header-row">
-          <h1 className="profile-name">{student.name}</h1>
-          <span className={`credit-badge ${student.credits > 0 ? 'has-credits' : ''}`}>
-            {student.credits} credit{student.credits !== 1 ? 's' : ''}
-          </span>
-        </div>
-        {student.email && <p className="profile-detail">Email: {student.email}</p>}
-        {student.notes && <p className="profile-detail">Notes: {student.notes}</p>}
-        {!student.active && <span className="inactive-label">Archived</span>}
-        <div className="profile-actions">
-          <button className="btn-secondary btn-sm" onClick={() => setShowEdit(true)}>Edit</button>
-          <button className="btn-secondary btn-sm" onClick={handleArchive}>
-            {student.active ? 'Archive' : 'Unarchive'}
-          </button>
-          <button className="btn-danger btn-sm" onClick={() => setShowDelete(true)}>Delete</button>
-        </div>
-      </div>
-
-      {student.credits > 0 && eligibleForReplacement.length > 0 && (
-        <div className="card replacement-card">
-          <p className="replacement-hint">
-            {student.name} has {student.credits} credit(s) available.
-          </p>
-          <button className="btn-primary btn-sm" onClick={() => setShowReplacement(true)}>
-            Set Replacement Class
-          </button>
-        </div>
-      )}
-
-      <AttendanceCalendar attendanceRecords={attendance} />
-
-      <div className="card attendance-section">
-        <h2 className="section-title">Attendance History</h2>
-        {attendance.length === 0 ? (
-          <p className="status-text">No attendance records yet.</p>
-        ) : (
-          <div className="attendance-table">
-            <div className="attendance-table-header">
-              <span>Date</span>
-              <span>Status</span>
-              <span>Replacement</span>
-              <span>Actions</span>
+      <div className="profile-layout">
+        <div className="profile-left">
+          <div className="card profile-header">
+            <div className="profile-header-row">
+              <h1 className="profile-name">{student.name}</h1>
+              <span className={`credit-badge ${student.credits > 0 ? 'has-credits' : ''}`}>
+                {student.credits} credit{student.credits !== 1 ? 's' : ''}
+              </span>
             </div>
-            {attendance.map(record => (
-              <div
-                key={record.id}
-                className={`attendance-table-row ${record.status === 'absent' ? 'row-absent' : 'row-present'}`}
-              >
-                <span>{record.date}</span>
-                <span>{record.status === 'present' ? 'Present' : 'Absent'}</span>
-                <span>{record.replacement_date || '—'}</span>
-                <span className="attendance-row-actions">
-                  <button
-                    className="btn-secondary btn-xs"
-                    onClick={() => { setShowEditAttendance(record); setEditAttendanceStatus(record.status); }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="btn-danger btn-xs"
-                    onClick={() => setShowDeleteAttendance(record)}
-                  >
-                    Delete
-                  </button>
-                </span>
+            {student.email && <p className="profile-detail">Email: {student.email}</p>}
+            {student.notes && <p className="profile-detail">Notes: {student.notes}</p>}
+            {!student.active && <span className="inactive-label">Archived</span>}
+
+            {student.classes && student.classes.length > 0 && (
+              <div className="profile-classes">
+                <p className="profile-detail" style={{ fontWeight: 600, marginTop: 12 }}>Classes:</p>
+                {student.classes.map(cls => (
+                  <div key={cls.id} className="profile-class-row">
+                    <span className="class-link" onClick={() => navigate(`/classes/${cls.id}`)}>{cls.name}</span>
+                    {cls.stage_name && <span className="inactive-label" style={{ marginLeft: 8 }}>{cls.stage_name}</span>}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            <div className="profile-actions">
+              <button className="btn-secondary btn-sm" onClick={() => setShowEdit(true)}>Edit</button>
+              <button className="btn-secondary btn-sm" onClick={handleArchive}>
+                {student.active ? 'Archive' : 'Unarchive'}
+              </button>
+              <button className="btn-danger btn-sm" onClick={() => setShowDelete(true)}>Delete</button>
+            </div>
           </div>
-        )}
+
+          {student.credits > 0 && eligibleForReplacement.length > 0 && (
+            <div className="card replacement-card">
+              <p className="replacement-hint">
+                {student.name} has {student.credits} credit(s) available.
+              </p>
+              <button className="btn-primary btn-sm" onClick={() => setShowReplacement(true)}>
+                Set Replacement Class
+              </button>
+            </div>
+          )}
+
+          <div className="card attendance-section">
+            <h2 className="section-title">Attendance History</h2>
+            {attendance.length === 0 ? (
+              <p className="status-text">No attendance records yet.</p>
+            ) : (
+              <div className="attendance-table">
+                <div className="attendance-table-header">
+                  <span>Date</span>
+                  <span>Status</span>
+                  <span>Replacement</span>
+                  <span>Actions</span>
+                </div>
+                {attendance.map(record => (
+                  <div
+                    key={record.id}
+                    className={`attendance-table-row ${record.status === 'absent' ? 'row-absent' : 'row-present'}`}
+                  >
+                    <span>{record.date}</span>
+                    <span>{record.status === 'present' ? 'Present' : 'Absent'}</span>
+                    <span>{record.replacement_date || '—'}</span>
+                    <span className="attendance-row-actions">
+                      <button className="btn-secondary btn-xs" onClick={() => { setShowEditAttendance(record); setEditAttendanceStatus(record.status); }}>Edit</button>
+                      <button className="btn-danger btn-xs" onClick={() => setShowDeleteAttendance(record)}>Delete</button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="profile-right">
+          <AttendanceCalendar attendanceRecords={attendance} />
+        </div>
       </div>
 
       {showEdit && (
@@ -263,12 +270,7 @@ function StudentProfile() {
             </p>
             <div className="form-group">
               <label htmlFor="replacement-record">Absent Date</label>
-              <select
-                id="replacement-record"
-                value={selectedAttendanceId || ''}
-                onChange={e => setSelectedAttendanceId(Number(e.target.value))}
-                required
-              >
+              <select id="replacement-record" value={selectedAttendanceId || ''} onChange={e => setSelectedAttendanceId(Number(e.target.value))} required>
                 <option value="">Select a date...</option>
                 {eligibleForReplacement.map(record => (
                   <option key={record.id} value={record.id}>{record.date}</option>
@@ -277,20 +279,12 @@ function StudentProfile() {
             </div>
             <div className="form-group">
               <label htmlFor="replacement-date">Replacement Date</label>
-              <input
-                id="replacement-date"
-                type="date"
-                value={replacementDate}
-                onChange={e => setReplacementDate(e.target.value)}
-                required
-              />
+              <input id="replacement-date" type="date" value={replacementDate} onChange={e => setReplacementDate(e.target.value)} required />
             </div>
             {error && <p className="form-error">{error}</p>}
             <div className="modal-actions">
               <button type="button" className="btn-secondary" onClick={() => setShowReplacement(false)}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={replacing}>
-                {replacing ? 'Setting...' : 'Set Replacement'}
-              </button>
+              <button type="submit" className="btn-primary" disabled={replacing}>{replacing ? 'Setting...' : 'Set Replacement'}</button>
             </div>
           </form>
         </Modal>
@@ -303,11 +297,7 @@ function StudentProfile() {
           </p>
           <div className="form-group">
             <label htmlFor="edit-att-status">Status</label>
-            <select
-              id="edit-att-status"
-              value={editAttendanceStatus}
-              onChange={e => setEditAttendanceStatus(e.target.value)}
-            >
+            <select id="edit-att-status" value={editAttendanceStatus} onChange={e => setEditAttendanceStatus(e.target.value)}>
               <option value="present">Present</option>
               <option value="absent">Absent</option>
             </select>

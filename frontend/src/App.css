@@ -445,6 +445,40 @@ label {
   color: #991b1b;
 }
 
+.toggle-unmarked {
+  background: #f3f4f6;
+  border-color: var(--color-border);
+  color: #9ca3af;
+}
+
+.attendance-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.bulk-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-controls select {
+  width: auto;
+  font-size: 14px;
+  padding: 6px 10px;
+}
+
+.attendance-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
 .attendance-submit {
   width: 100%;
   margin-top: 16px;
@@ -462,7 +496,33 @@ label {
 }
 
 .profile-page {
-  max-width: 700px;
+  max-width: 1000px;
+}
+
+.profile-layout {
+  display: flex;
+  gap: 20px;
+  margin-top: 12px;
+  align-items: flex-start;
+}
+
+.profile-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-right {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 840px) {
+  .profile-layout {
+    flex-direction: column;
+  }
+  .profile-right {
+    width: 100%;
+  }
 }
 
 .profile-header {
@@ -485,6 +545,27 @@ label {
   font-size: 14px;
   color: var(--color-text-secondary);
   margin-bottom: 4px;
+}
+
+.profile-classes {
+  margin-top: 4px;
+}
+
+.profile-class-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.class-link {
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.class-link:hover {
+  text-decoration: underline;
 }
 
 .profile-actions {
@@ -574,18 +655,21 @@ label {
 
 /* Calendar */
 .attendance-calendar {
-  margin-top: 16px;
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 12px;
 }
 
 .cal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .cal-title {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -593,9 +677,9 @@ label {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 4px 12px;
-  min-height: 36px;
-  font-size: 16px;
+  padding: 2px 8px;
+  min-height: 28px;
+  font-size: 14px;
   cursor: pointer;
   color: var(--color-text);
 }
@@ -611,7 +695,7 @@ label {
 }
 
 .cal-day-label {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-text-secondary);
   text-align: center;
@@ -623,8 +707,8 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  border-radius: 6px;
+  font-size: 11px;
+  border-radius: 4px;
 }
 
 .cal-blank {
@@ -645,18 +729,18 @@ label {
 
 .cal-legend {
   display: flex;
-  gap: 16px;
-  margin-top: 12px;
-  font-size: 13px;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 11px;
   color: var(--color-text-secondary);
 }
 
 .legend-dot {
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  margin-right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 3px;
   vertical-align: middle;
 }
 
