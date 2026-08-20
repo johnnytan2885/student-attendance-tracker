@@ -106,68 +106,36 @@ function Dashboard() {
     );
   }
 
-  // Build today's timeline
+  // Horizontal timeline 00:00 - 23:59
   var todaySchedules = schedulesByDate[todayStr] || [];
-  var hourlySlots = [];
+  var hourLabels = [];
   for (var h = 0; h < 24; h++) {
-    var hourLabel = String(h).padStart(2, '0') + ':00';
-    var blocksInHour = [];
+    hourLabels.push(
+      <div key={h} className="htimeline-label" style={{ left: (h / 24) * 100 + '%' }}>
+        {String(h).padStart(2, '0') + ':00'}
+      </div>
+    );
+  }
 
-    for (var ti = 0; ti < todaySchedules.length; ti++) {
-      var ts = todaySchedules[ti];
-      var startH = Number((ts.time || '00:00').split(':')[0]);
-      var startM = Number((ts.time || '00:00').split(':')[1]);
-      var endH = ts.end_time ? Number(ts.end_time.split(':')[0]) : (startH + 1);
-      var endM = ts.end_time ? Number(ts.end_time.split(':')[1]) : startM;
+  var timelineBlocks = [];
+  for (var tb = 0; tb < todaySchedules.length; tb++) {
+    var ts = todaySchedules[tb];
+    var startH = Number((ts.time || '00:00').split(':')[0]);
+    var startM = Number((ts.time || '00:00').split(':')[1]);
+    var endH = ts.end_time ? Number(ts.end_time.split(':')[0]) : (startH + 1);
+    var endM = ts.end_time ? Number(ts.end_time.split(':')[1]) : startM;
+    var totalMinutes = 24 * 60;
+    var leftPct = ((startH * 60 + startM) / totalMinutes) * 100;
+    var widthPct = (((endH * 60 + endM) - (startH * 60 + startM)) / totalMinutes) * 100;
 
-      // Check if this class overlaps with this hour slot
-      var slotStart = h * 60;
-      var slotEnd = (h + 1) * 60;
-      var classStart = startH * 60 + startM;
-      var classEnd = endH * 60 + endM;
-
-      if (classStart < slotEnd && classEnd > slotStart) {
-        blocksInHour.push(ts);
-      }
-    }
-
-    hourlySlots.push(
-      <div key={h} className="timeline-hour">
-        <div className="timeline-label">{hourLabel}</div>
-        <div className="timeline-track">
-          {blocksInHour.length === 0 && <div className="timeline-empty" />}
-          {blocksInHour.map(function(sched) {
-            var sH = Number((sched.time || '00:00').split(':')[0]);
-            var sM = Number((sched.time || '00:00').split(':')[1]);
-            var eH = sched.end_time ? Number(sched.end_time.split(':')[0]) : (sH + 1);
-            var eM = sched.end_time ? Number(sched.end_time.split(':')[1]) : sM;
-            var totalStart = sH * 60 + sM;
-            var totalEnd = eH * 60 + eM;
-            var slotStartMin = h * 60;
-            var slotEndMin = (h + 1) * 60;
-            var overlapStart = Math.max(totalStart, slotStartMin);
-            var overlapEnd = Math.min(totalEnd, slotEndMin);
-            var overlapMinutes = overlapEnd - overlapStart;
-            var percent = (overlapMinutes / 60) * 100;
-            var offsetMin = overlapStart - slotStartMin;
-            var offsetPercent = (offsetMin / 60) * 100;
-
-            return (
-              <div
-                key={sched.id}
-                className="timeline-block"
-                style={{
-                  left: offsetPercent + '%',
-                  width: percent + '%'
-                }}
-                title={sched.class_name + ': ' + sched.students.map(function(s) { return s.name; }).join(', ')}
-              >
-                <span className="timeline-block-text">{sched.class_name}</span>
-                <span className="timeline-block-students">{sched.students.map(function(s) { return s.name; }).join(', ')}</span>
-              </div>
-            );
-          })}
-        </div>
+    timelineBlocks.push(
+      <div
+        key={ts.id}
+        className="htimeline-block"
+        style={{ left: leftPct + '%', width: Math.max(widthPct, 1.5) + '%' }}
+      >
+        <span className="htimeline-block-name">{ts.class_name}</span>
+        <span className="htimeline-block-students">{ts.students.map(function(s) { return s.name; }).join(', ')}</span>
       </div>
     );
   }
@@ -183,37 +151,44 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="card timeline-card">
+      <div className="card htimeline-card">
         <h3 className="section-title">Today - {todayStr}</h3>
-        <div className="timeline-container">
-          {hourlySlots}
+        <div className="htimeline-wrap">
+          <div className="htimeline-nowrap">
+            <div className="htimeline-labels">
+              {hourLabels}
+            </div>
+            <div className="htimeline-track">
+              {timelineBlocks}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="dashboard-layout">
-        <div className="card dashboard-calendar-card">
-          <div className="cal-header">
+        <div className="card dashboard-calendar-card" style={{ padding: 12 }}>
+          <div className="cal-header" style={{ marginBottom: 6 }}>
             <button className="cal-nav" onClick={prevMonth}>&lsaquo;</button>
-            <span className="cal-title" style={{ fontSize: 16 }}>{MONTHS[month]} {year}</span>
+            <span className="cal-title" style={{ fontSize: 14 }}>{MONTHS[month]} {year}</span>
             <button className="cal-nav" onClick={nextMonth}>&rsaquo;</button>
           </div>
-          <div className="cal-grid" style={{ gap: 4 }}>
-            {DAYS.map(function(d) { return <div key={d} className="cal-day-label">{d}</div>; })}
+          <div className="cal-grid" style={{ gap: 3 }}>
+            {DAYS.map(function(d) { return <div key={d} className="cal-day-label" style={{ fontSize: 9, padding: '2px 0' }}>{d}</div>; })}
             {cells}
           </div>
         </div>
 
-        <div className="dashboard-sidebar">
+        <div className="dashboard-sidebar" style={{ width: 300 }}>
           {!loading && !selectedDay && (
-            <div className="card" style={{ padding: 20, textAlign: 'center' }}>
-              <p className="status-text" style={{ fontSize: 15 }}>Click a date to see scheduled classes</p>
+            <div className="card" style={{ padding: 16, textAlign: 'center' }}>
+              <p className="status-text" style={{ fontSize: 14 }}>Click a date to see scheduled classes</p>
             </div>
           )}
           {!loading && selectedDay && (
-            <div className="card" style={{ padding: 16 }}>
-              <h3 className="section-title">{selectedDay}</h3>
+            <div className="card" style={{ padding: 14 }}>
+              <h3 className="section-title" style={{ fontSize: 15, marginBottom: 8 }}>{selectedDay}</h3>
               {sidebarCards.length === 0 ? (<p className="status-text">No classes scheduled</p>) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{sidebarCards}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{sidebarCards}</div>
               )}
             </div>
           )}
