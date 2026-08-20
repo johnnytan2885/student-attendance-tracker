@@ -798,15 +798,13 @@ label {
 }
 
 .htimeline-wrap {
-  overflow-x: auto;
-  overflow-y: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 4px 0;
 }
 
 .htimeline-nowrap {
-  min-width: 1200px;
+  width: 100%;
   position: relative;
 }
 
@@ -830,9 +828,9 @@ label {
   background: repeating-linear-gradient(
     to right,
     transparent,
-    transparent calc(100% / 24 - 1px),
-    var(--color-border) calc(100% / 24 - 1px),
-    var(--color-border) calc(100% / 24)
+    transparent calc(100% / 14 - 1px),
+    var(--color-border) calc(100% / 14 - 1px),
+    var(--color-border) calc(100% / 14)
   );
 }
 

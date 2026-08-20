@@ -106,12 +106,17 @@ function Dashboard() {
     );
   }
 
-  // Horizontal timeline 00:00 - 23:59
+  // Horizontal timeline 08:00 - 22:00
   var todaySchedules = schedulesByDate[todayStr] || [];
+  var HOURS_START = 8;
+  var HOURS_END = 22;
+  var HOURS_TOTAL = HOURS_END - HOURS_START;
+  var MINUTES_TOTAL = HOURS_TOTAL * 60;
+
   var hourLabels = [];
-  for (var h = 0; h < 24; h++) {
+  for (var h = HOURS_START; h <= HOURS_END; h++) {
     hourLabels.push(
-      <div key={h} className="htimeline-label" style={{ left: (h / 24) * 100 + '%' }}>
+      <div key={h} className="htimeline-label" style={{ left: ((h - HOURS_START) / HOURS_TOTAL) * 100 + '%' }}>
         {String(h).padStart(2, '0') + ':00'}
       </div>
     );
@@ -120,13 +125,14 @@ function Dashboard() {
   var timelineBlocks = [];
   for (var tb = 0; tb < todaySchedules.length; tb++) {
     var ts = todaySchedules[tb];
-    var startH = Number((ts.time || '00:00').split(':')[0]);
-    var startM = Number((ts.time || '00:00').split(':')[1]);
+    var startH = Number((ts.time || '08:00').split(':')[0]);
+    var startM = Number((ts.time || '08:00').split(':')[1]);
     var endH = ts.end_time ? Number(ts.end_time.split(':')[0]) : (startH + 1);
     var endM = ts.end_time ? Number(ts.end_time.split(':')[1]) : startM;
-    var totalMinutes = 24 * 60;
-    var leftPct = ((startH * 60 + startM) / totalMinutes) * 100;
-    var widthPct = (((endH * 60 + endM) - (startH * 60 + startM)) / totalMinutes) * 100;
+    var classStartMin = Math.max((startH * 60 + startM) - HOURS_START * 60, 0);
+    var classEndMin = Math.min((endH * 60 + endM) - HOURS_START * 60, MINUTES_TOTAL);
+    var leftPct = (classStartMin / MINUTES_TOTAL) * 100;
+    var widthPct = Math.max(((classEndMin - classStartMin) / MINUTES_TOTAL) * 100, 1.5);
 
     timelineBlocks.push(
       <div
