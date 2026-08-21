@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
-import { getClasses, getStudents, createSchedule, getSchedules, deleteSchedule, markScheduleAttendance } from '../api/client.js';
+import { getClasses, getStudents, createSchedule, getSchedules, deleteSchedule, markScheduleAttendance, markReplacementAttendance } from '../api/client.js';
 
 function SchedulePage() {
   var navigate = useNavigate();
@@ -98,16 +98,22 @@ function SchedulePage() {
     }
   }
 
-  async function handleMark(scheduleId, studentId, status) {
+  async function handleMark(schedule, studentId, status) {
+    var scheduleId = schedule.id;
     try {
-      var result = await markScheduleAttendance(scheduleId, studentId, status);
+      var result;
+      if (schedule.type === 'replacement') {
+        result = await markReplacementAttendance(schedule.source_absent_id, studentId, status);
+      } else {
+        result = await markScheduleAttendance(scheduleId, studentId, status);
+      }
       // Update the schedule's student attendance status in local state
       setSchedules(function(prev) {
         return prev.map(function(s) {
           if (s.id !== scheduleId) return s;
           var updatedStudents = s.students.map(function(st) {
             if (st.id !== studentId) return st;
-            return { ...st, attendance_status: status, attendance_id: result.attendance.id };
+            return { ...st, attendance_status: status, attendance_id: result.attendance ? result.attendance.id : null };
           });
           return { ...s, students: updatedStudents };
         });
@@ -213,24 +219,24 @@ function SchedulePage() {
                     <span className="attendance-row-actions">
                       {!attStatus && (
                         <div className="attendance-row-actions">
-                          <button className="btn-primary btn-xs" onClick={function() { handleMark(sc.id, st.id, 'present'); }}>P</button>
-                          <button className="btn-danger btn-xs" onClick={function() { handleMark(sc.id, st.id, 'absent'); }}>A</button>
+                          <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
+                          <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
                         </div>
                       )}
                       {attStatus === 'present' && (
                         <div className="attendance-row-actions">
                           <span className="inactive-label" style={{ color: '#065f46', background: '#d1fae5', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>P</span>
-                          <button className="btn-danger btn-xs" onClick={function() { handleMark(sc.id, st.id, 'absent'); }}>A</button>
+                          <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
                         </div>
                       )}
                       {attStatus === 'absent' && (
                         <div className="attendance-row-actions">
                           <span className="inactive-label" style={{ color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>A</span>
-                          <button className="btn-primary btn-xs" onClick={function() { handleMark(sc.id, st.id, 'present'); }}>P</button>
+                          <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
                         </div>
                       )}
                       {/* Add delete button only once per schedule */}
-                      {isFirst && (
+                      {isFirst && sc.type !== 'replacement' && (
                         <button className="btn-danger btn-xs" style={{ marginLeft: 4 }} onClick={function(e) { e.stopPropagation(); setShowDelete(sc.id); }}>X</button>
                       )}
                     </span>
@@ -247,7 +253,7 @@ function SchedulePage() {
                     <span>{sc.class_name}</span>
                     <span className="status-text">No students</span>
                     <span className="attendance-row-actions">
-                      <button className="btn-danger btn-xs" onClick={function() { setShowDelete(sc.id); }}>X</button>
+                      {sc.type !== 'replacement' && <button className="btn-danger btn-xs" onClick={function() { setShowDelete(sc.id); }}>X</button>}
                     </span>
                   </div>
                 );

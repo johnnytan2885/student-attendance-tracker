@@ -90,7 +90,7 @@ router.post('/:id/mark', function(req, res) {
   res.json({ attendance: ar, credits: student.credits });
 });
 
-// Get all scheduled classes (with attendance status)
+// Get all scheduled classes (with attendance status + replacement entries)
 router.get('/', function(req, res) {
   var schedules = db.prepare(
     'SELECT sc.*, c.name as class_name FROM scheduled_class sc JOIN class c ON c.id = sc.class_id ORDER BY sc.date DESC, sc.time DESC'
@@ -98,8 +98,33 @@ router.get('/', function(req, res) {
 
   var result = schedules.map(function(sc) {
     var students = getStudentsWithAttendance(sc.id, sc.date);
-    return { ...sc, students: students };
+    return { ...sc, students: students, type: 'scheduled' };
   });
+
+  // Include replacement entries
+  var replacements = db.prepare(
+    "SELECT ar.*, s.name as student_name FROM attendance_record ar JOIN student s ON s.id = ar.student_id WHERE ar.replacement_date IS NOT NULL ORDER BY ar.replacement_date, ar.replacement_time"
+  ).all();
+
+  replacements.forEach(function(r) {
+    var markRecord = db.prepare("SELECT id, status FROM attendance_record WHERE replacement_for_id = ?").get(r.id);
+    result.push({
+      id: 'rep-' + r.id,
+      class_name: r.student_name + ' (Replacement for ' + r.date + ')',
+      date: r.replacement_date,
+      time: r.replacement_time || null,
+      end_time: r.replacement_end_time || null,
+      students: [{ 
+        name: r.student_name, 
+        attendance_status: markRecord ? markRecord.status : null, 
+        attendance_id: markRecord ? markRecord.id : null 
+      }],
+      type: 'replacement',
+      source_absent_id: r.id,
+      student_id: r.student_id
+    });
+  });
+
   res.json(result);
 });
 
