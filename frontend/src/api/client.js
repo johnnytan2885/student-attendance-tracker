@@ -212,3 +212,10 @@ export async function getSchedulesRange(from, to) {
 export async function deleteSchedule(id) {
   return apiFetch(`/api/schedules/${id}`, { method: 'DELETE' });
 }
+
+export async function markScheduleAttendance(scheduleId, studentId, status) {
+  return apiFetch(`/api/schedules/${scheduleId}/mark`, {
+    method: 'POST',
+    body: JSON.stringify({ student_id: studentId, status }),
+  });
+}

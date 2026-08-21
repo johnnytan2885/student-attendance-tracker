@@ -2,8 +2,21 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+// Helper: get students with attendance status for a scheduled class
+function getStudentsWithAttendance(scId, scDate) {
+  const students = db.prepare(
+    `SELECT s.id, s.name, ar.status as attendance_status, ar.id as attendance_id
+     FROM scheduled_class_student scs
+     JOIN student s ON s.id = scs.student_id
+     LEFT JOIN attendance_record ar ON ar.student_id = s.id AND ar.date = ? AND ar.scheduled_class_id = ?
+     WHERE scs.scheduled_class_id = ?
+     ORDER BY s.name`
+  ).all(scDate, scId, scId);
+  return students;
+}
+
 // Create a scheduled class
-router.post('/', (req, res) => {
+router.post('/', function(req, res) {
   const { class_id, date, time, end_time, notes, student_ids } = req.body;
   if (!class_id || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: 'class_id and valid date (YYYY-MM-DD) are required' });
@@ -13,83 +26,127 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'At least one student is required' });
   }
 
-  const cls = db.prepare('SELECT id FROM class WHERE id = ?').get(class_id);
+  var cls = db.prepare('SELECT id FROM class WHERE id = ?').get(class_id);
   if (!cls) return res.status(404).json({ error: 'Class not found' });
 
-  for (const sid of student_ids) {
-    const s = db.prepare('SELECT id FROM student WHERE id = ?').get(sid);
-    if (!s) return res.status(404).json({ error: `Student not found: ${sid}` });
+  for (var si = 0; si < student_ids.length; si++) {
+    var s = db.prepare('SELECT id FROM student WHERE id = ?').get(student_ids[si]);
+    if (!s) return res.status(404).json({ error: 'Student not found: ' + student_ids[si] });
   }
 
-  const transaction = db.transaction(() => {
-    const result = db.prepare('INSERT INTO scheduled_class (class_id, date, time, end_time, notes) VALUES (?, ?, ?, ?, ?)').run(
+  var scId;
+  var transaction = db.transaction(function() {
+    var result = db.prepare('INSERT INTO scheduled_class (class_id, date, time, end_time, notes) VALUES (?, ?, ?, ?, ?)').run(
       class_id, date, time, end_time || null, notes || null
     );
-    const scId = result.lastInsertRowid;
-    const insertStudent = db.prepare('INSERT INTO scheduled_class_student (scheduled_class_id, student_id) VALUES (?, ?)');
-    for (const sid of student_ids) {
-      insertStudent.run(scId, sid);
+    scId = result.lastInsertRowid;
+    var insertStudent = db.prepare('INSERT INTO scheduled_class_student (scheduled_class_id, student_id) VALUES (?, ?)');
+    for (var si = 0; si < student_ids.length; si++) {
+      insertStudent.run(scId, student_ids[si]);
     }
-    return scId;
   });
+  transaction();
 
-  const scId = transaction();
-  const sc = db.prepare('SELECT * FROM scheduled_class WHERE id = ?').get(scId);
-  const students = db.prepare(
-    `SELECT s.id, s.name FROM scheduled_class_student scs
-     JOIN student s ON s.id = scs.student_id
-     WHERE scs.scheduled_class_id = ? ORDER BY s.name`
-  ).all(scId);
-  res.status(201).json({ ...sc, students });
+  var sc = db.prepare('SELECT * FROM scheduled_class WHERE id = ?').get(scId);
+  var students = getStudentsWithAttendance(scId, date);
+  res.status(201).json({ ...sc, students: students });
 });
 
-// Get all scheduled classes
-router.get('/', (req, res) => {
-  const schedules = db.prepare(
-    `SELECT sc.*, c.name as class_name
-     FROM scheduled_class sc
-     JOIN class c ON c.id = sc.class_id
-     ORDER BY sc.date DESC, sc.time DESC`
+// Mark a student in a scheduled class as present or absent
+router.post('/:id/mark', function(req, res) {
+  var { student_id, status } = req.body;
+  if (!student_id || !status || !['present', 'absent'].includes(status)) {
+    return res.status(400).json({ error: 'student_id and status (present/absent) required' });
+  }
+
+  var sc = db.prepare('SELECT * FROM scheduled_class WHERE id = ?').get(req.params.id);
+  if (!sc) return res.status(404).json({ error: 'Scheduled class not found' });
+
+  var cs = db.prepare('SELECT id FROM scheduled_class_student WHERE scheduled_class_id = ? AND student_id = ?').get(req.params.id, student_id);
+  if (!cs) return res.status(400).json({ error: 'Student not in this scheduled class' });
+
+  // Check existing attendance
+  var existing = db.prepare('SELECT id, status FROM attendance_record WHERE student_id = ? AND date = ?').get(student_id, sc.date);
+
+  var addCredit = db.prepare('UPDATE student SET credits = credits + 1 WHERE id = ?');
+  var removeCredit = db.prepare('UPDATE student SET credits = MAX(0, credits - 1) WHERE id = ?');
+  var upsert = db.prepare(
+    'INSERT INTO attendance_record (student_id, date, status, time, end_time, scheduled_class_id) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, time = excluded.time, end_time = excluded.end_time, scheduled_class_id = COALESCE(excluded.scheduled_class_id, scheduled_class_id), replacement_date = CASE WHEN excluded.status = \'present\' THEN NULL ELSE replacement_date END'
+  );
+
+  var transaction = db.transaction(function() {
+    if (existing) {
+      if (existing.status === 'absent' && status === 'present') removeCredit.run(student_id);
+      if (existing.status === 'present' && status === 'absent') addCredit.run(student_id);
+    } else {
+      if (status === 'absent') addCredit.run(student_id);
+    }
+    upsert.run(student_id, sc.date, status, sc.time, sc.end_time || null, req.params.id);
+  });
+  transaction();
+
+  var ar = db.prepare('SELECT * FROM attendance_record WHERE student_id = ? AND date = ?').get(student_id, sc.date);
+  var student = db.prepare('SELECT credits FROM student WHERE id = ?').get(student_id);
+  res.json({ attendance: ar, credits: student.credits });
+});
+
+// Get all scheduled classes (with attendance status)
+router.get('/', function(req, res) {
+  var schedules = db.prepare(
+    'SELECT sc.*, c.name as class_name FROM scheduled_class sc JOIN class c ON c.id = sc.class_id ORDER BY sc.date DESC, sc.time DESC'
   ).all();
 
-  const result = schedules.map(sc => {
-    const students = db.prepare(
-      `SELECT s.id, s.name FROM scheduled_class_student scs
-       JOIN student s ON s.id = scs.student_id
-       WHERE scs.scheduled_class_id = ? ORDER BY s.name`
-    ).all(sc.id);
-    return { ...sc, students };
+  var result = schedules.map(function(sc) {
+    var students = getStudentsWithAttendance(sc.id, sc.date);
+    return { ...sc, students: students };
   });
   res.json(result);
 });
 
-// Get scheduled classes for a date range (for dashboard calendar)
-router.get('/range', (req, res) => {
-  const { from, to } = req.query;
+// Get scheduled classes for a date range (includes attendance status + replacement records)
+router.get('/range', function(req, res) {
+  var { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to dates required (YYYY-MM-DD)' });
 
-  const schedules = db.prepare(
-    `SELECT sc.*, c.name as class_name
-     FROM scheduled_class sc
-     JOIN class c ON c.id = sc.class_id
-     WHERE sc.date >= ? AND sc.date <= ?
-     ORDER BY sc.date, sc.time`
+  var schedules = db.prepare(
+    'SELECT sc.*, c.name as class_name FROM scheduled_class sc JOIN class c ON c.id = sc.class_id WHERE sc.date >= ? AND sc.date <= ? ORDER BY sc.date, sc.time'
   ).all(from, to);
 
-  const result = schedules.map(sc => {
-    const students = db.prepare(
-      `SELECT s.id, s.name FROM scheduled_class_student scs
-       JOIN student s ON s.id = scs.student_id
-       WHERE scs.scheduled_class_id = ? ORDER BY s.name`
-    ).all(sc.id);
-    return { ...sc, students };
+  var result = schedules.map(function(sc) {
+    var students = getStudentsWithAttendance(sc.id, sc.date);
+    return { ...sc, students: students, type: 'scheduled' };
   });
+
+  // Include replacement class records (attendance records with replacement_for_id OR replacement_date set)
+  var replacements = db.prepare(
+    "SELECT ar.*, s.name as student_name FROM attendance_record ar JOIN student s ON s.id = ar.student_id WHERE (ar.replacement_for_id IS NOT NULL OR ar.replacement_date IS NOT NULL) AND ar.date >= ? AND ar.date <= ? ORDER BY ar.date, ar.time"
+  ).all(from, to);
+
+  replacements.forEach(function(r) {
+    result.push({
+      id: 'rep-' + r.id,
+      class_name: r.student_name + ' (Replacement' + (r.replacement_date ? (' from ' + r.replacement_date) : '') + ')',
+      date: r.date,
+      time: r.time,
+      end_time: r.end_time,
+      students: [{ name: r.student_name, attendance_status: r.status, attendance_id: r.id }],
+      type: 'replacement'
+    });
+  });
+
+  // Sort combined results by date then time
+  result.sort(function(a, b) {
+    var dateCmp = (a.date || '').localeCompare(b.date || '');
+    if (dateCmp !== 0) return dateCmp;
+    return (a.time || '00:00').localeCompare(b.time || '00:00');
+  });
+
   res.json(result);
 });
 
 // Delete a scheduled class
-router.delete('/:id', (req, res) => {
-  const existing = db.prepare('SELECT id FROM scheduled_class WHERE id = ?').get(req.params.id);
+router.delete('/:id', function(req, res) {
+  var existing = db.prepare('SELECT id FROM scheduled_class WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Scheduled class not found' });
   db.prepare('DELETE FROM scheduled_class WHERE id = ?').run(req.params.id);
   res.status(204).send();
