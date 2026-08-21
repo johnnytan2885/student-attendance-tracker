@@ -202,62 +202,62 @@ function SchedulePage() {
           {function() {
             var rows = [];
             for (var si = 0; si < schedules.length; si++) {
-              var sc = schedules[si];
-              var students = sc.students || [];
-              for (var ssi = 0; ssi < students.length; ssi++) {
-                var st = students[ssi];
-                var attStatus = st.attendance_status;
-                var rowKey = sc.id + '-' + st.id;
-                var isFirst = ssi === 0;
-                rows.push(
-                  <div key={rowKey} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 100px' }}>
-                    <span>{isFirst ? sc.date : ''}</span>
-                    <span>{isFirst ? sc.time : ''}</span>
-                    <span>{isFirst ? (sc.end_time || '—') : ''}</span>
-                    <span>{isFirst ? sc.class_name : ''}</span>
-                    <span>{st.name}</span>
-                    <span className="attendance-row-actions">
-                      {!attStatus && (
-                        <div className="attendance-row-actions">
-                          <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
-                          <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
-                        </div>
-                      )}
-                      {attStatus === 'present' && (
-                        <div className="attendance-row-actions">
-                          <span className="inactive-label" style={{ color: '#065f46', background: '#d1fae5', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>P</span>
-                          <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
-                        </div>
-                      )}
-                      {attStatus === 'absent' && (
-                        <div className="attendance-row-actions">
-                          <span className="inactive-label" style={{ color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>A</span>
-                          <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
-                        </div>
-                      )}
-                      {/* Add delete button only once per schedule */}
-                      {isFirst && sc.type !== 'replacement' && (
-                        <button className="btn-danger btn-xs" style={{ marginLeft: 4 }} onClick={function(e) { e.stopPropagation(); setShowDelete(sc.id); }}>X</button>
-                      )}
-                    </span>
-                  </div>
-                );
-              }
-              // If no students, show a row with just the schedule info
-              if (students.length === 0) {
-                rows.push(
-                  <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 100px' }}>
-                    <span>{sc.date}</span>
-                    <span>{sc.time}</span>
-                    <span>{sc.end_time || '—'}</span>
-                    <span>{sc.class_name}</span>
-                    <span className="status-text">No students</span>
-                    <span className="attendance-row-actions">
-                      {sc.type !== 'replacement' && <button className="btn-danger btn-xs" onClick={function() { setShowDelete(sc.id); }}>X</button>}
-                    </span>
-                  </div>
-                );
-              }
+              (function(sc) {
+                var students = sc.students || [];
+                for (var ssi = 0; ssi < students.length; ssi++) {
+                  (function(st) {
+                    var attStatus = st.attendance_status;
+                    var rowKey = sc.id + '-' + st.id;
+                    var isFirst = ssi === 0;
+                    rows.push(
+                      <div key={rowKey} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 100px' }}>
+                        <span>{isFirst ? sc.date : ''}</span>
+                        <span>{isFirst ? sc.time : ''}</span>
+                        <span>{isFirst ? (sc.end_time || '—') : ''}</span>
+                        <span>{isFirst ? sc.class_name : ''}</span>
+                        <span>{st.name}</span>
+                        <span className="attendance-row-actions">
+                          {!attStatus && (
+                            <div className="attendance-row-actions">
+                              <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
+                              <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
+                            </div>
+                          )}
+                          {attStatus === 'present' && (
+                            <div className="attendance-row-actions">
+                              <span className="inactive-label" style={{ color: '#065f46', background: '#d1fae5', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>P</span>
+                              <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
+                            </div>
+                          )}
+                          {attStatus === 'absent' && (
+                            <div className="attendance-row-actions">
+                              <span className="inactive-label" style={{ color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>A</span>
+                              <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
+                            </div>
+                          )}
+                          {isFirst && sc.type !== 'replacement' && (
+                            <button className="btn-danger btn-xs" style={{ marginLeft: 4 }} onClick={function(e) { e.stopPropagation(); setShowDelete(sc.id); }}>X</button>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })(students[ssi]);
+                }
+                if (students.length === 0) {
+                  rows.push(
+                    <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 100px' }}>
+                      <span>{sc.date}</span>
+                      <span>{sc.time}</span>
+                      <span>{sc.end_time || '—'}</span>
+                      <span>{sc.class_name}</span>
+                      <span className="status-text">No students</span>
+                      <span className="attendance-row-actions">
+                        {sc.type !== 'replacement' && <button className="btn-danger btn-xs" onClick={function() { setShowDelete(sc.id); }}>X</button>}
+                      </span>
+                    </div>
+                  );
+                }
+              })(schedules[si]);
             }
             return rows;
           }()}
