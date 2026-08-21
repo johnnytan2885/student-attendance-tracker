@@ -106,8 +106,8 @@ router.get('/dates', (req, res) => {
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to dates required' });
   const dates = db.prepare(
-    'SELECT DISTINCT date FROM (SELECT date FROM attendance_record WHERE date >= ? AND date <= ? UNION ALL SELECT date FROM scheduled_class WHERE date >= ? AND date <= ?) ORDER BY date'
-  ).all(from, to, from, to);
+    'SELECT DISTINCT date FROM (SELECT date FROM attendance_record WHERE date >= ? AND date <= ? UNION ALL SELECT date FROM scheduled_class WHERE date >= ? AND date <= ? UNION ALL SELECT replacement_date as date FROM attendance_record WHERE replacement_date IS NOT NULL AND replacement_date >= ? AND replacement_date <= ?) ORDER BY date'
+  ).all(from, to, from, to, from, to);
   res.json(dates.map(function(d) { return d.date; }));
 });
 
@@ -166,7 +166,7 @@ router.delete('/:id', (req, res) => {
   res.json({ message: 'Attendance record deleted', credits: student.credits });
 });
 
-// Set replacement class
+// Set replacement class — stores replacement date/time on the absent record, deducts credit, but does NOT create an attendance record
 router.post('/replacement', (req, res) => {
   const { student_id, attendance_id, replacement_date, time, end_time } = req.body;
 
@@ -198,18 +198,15 @@ router.post('/replacement', (req, res) => {
   }
 
   const transaction = db.transaction(() => {
-    db.prepare('UPDATE attendance_record SET replacement_date = ? WHERE id = ?').run(replacement_date, attendance_id);
+    db.prepare('UPDATE attendance_record SET replacement_date = ?, replacement_time = ?, replacement_end_time = ? WHERE id = ?').run(replacement_date, time || null, end_time || null, attendance_id);
     db.prepare('UPDATE student SET credits = credits - 1 WHERE id = ?').run(student_id);
-    var insertUpsert = "INSERT INTO attendance_record (student_id, date, status, time, end_time, replacement_for_id) VALUES (?, ?, 'present', ?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = 'present', time = excluded.time, end_time = excluded.end_time, replacement_for_id = COALESCE(excluded.replacement_for_id, replacement_for_id)";
-    db.prepare(insertUpsert).run(student_id, replacement_date, time || null, end_time || null, attendance_id);
   });
 
   transaction();
 
   const updated = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(attendance_id);
   const updatedStudent = db.prepare('SELECT credits FROM student WHERE id = ?').get(student_id);
-  const replacementRecord = db.prepare('SELECT * FROM attendance_record WHERE student_id = ? AND date = ? AND replacement_for_id = ?').get(student_id, replacement_date, attendance_id);
-  res.json({ attendance: updated, credits: updatedStudent.credits, replacementRecord: replacementRecord });
+  res.json({ attendance: updated, credits: updatedStudent.credits });
 });
 
 

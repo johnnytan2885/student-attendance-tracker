@@ -143,9 +143,20 @@ function Dashboard() {
     );
   }
 
-  // Attendance records for selected day (non-scheduled)
+  // Attendance records for selected day (non-scheduled) — skip records already covered by a scheduled class
+  var scheduledStudentIds = {};
+  for (var si2 = 0; si2 < selectedSchedules.length; si2++) {
+    var sched = selectedSchedules[si2];
+    if (sched.type === 'scheduled' && sched.students) {
+      for (var si3 = 0; si3 < sched.students.length; si3++) {
+        scheduledStudentIds[sched.students[si3].id] = true;
+      }
+    }
+  }
   for (var ai = 0; ai < selectedDayAtt.length; ai++) {
     var ar = selectedDayAtt[ai];
+    // Skip if this student+date combo is already shown in a scheduled class, or if this is a replacement marking record
+    if (scheduledStudentIds[ar.student_id] || ar.replacement_for_id) continue;
     sidebarCards.push(
       <div key={'att-' + ar.id} className="schedule-card-item">
         <div className="schedule-card-time">{ar.time || '--:--'}{ar.end_time ? '-' + ar.end_time : ''}</div>

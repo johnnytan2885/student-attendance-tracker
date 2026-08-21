@@ -117,20 +117,28 @@ router.get('/range', function(req, res) {
     return { ...sc, students: students, type: 'scheduled' };
   });
 
-  // Include replacement class records (attendance records with replacement_for_id OR replacement_date set)
+  // Include replacement class records — show them as events on the replacement_date
   var replacements = db.prepare(
-    "SELECT ar.*, s.name as student_name FROM attendance_record ar JOIN student s ON s.id = ar.student_id WHERE (ar.replacement_for_id IS NOT NULL OR ar.replacement_date IS NOT NULL) AND ar.date >= ? AND ar.date <= ? ORDER BY ar.date, ar.time"
+    "SELECT ar.*, s.name as student_name FROM attendance_record ar JOIN student s ON s.id = ar.student_id WHERE ar.replacement_date IS NOT NULL AND ar.replacement_date >= ? AND ar.replacement_date <= ? ORDER BY ar.replacement_date, ar.replacement_time"
   ).all(from, to);
 
   replacements.forEach(function(r) {
+    // Check if a marking attendance record already exists for this replacement
+    var markRecord = db.prepare("SELECT id, status FROM attendance_record WHERE replacement_for_id = ?").get(r.id);
     result.push({
       id: 'rep-' + r.id,
-      class_name: r.student_name + ' (Replacement' + (r.replacement_date ? (' from ' + r.replacement_date) : '') + ')',
-      date: r.date,
-      time: r.time,
-      end_time: r.end_time,
-      students: [{ name: r.student_name, attendance_status: r.status, attendance_id: r.id }],
-      type: 'replacement'
+      class_name: r.student_name + ' (Replacement for ' + r.date + ')',
+      date: r.replacement_date,
+      time: r.replacement_time || null,
+      end_time: r.replacement_end_time || null,
+      students: [{ 
+        name: r.student_name, 
+        attendance_status: markRecord ? markRecord.status : null, 
+        attendance_id: markRecord ? markRecord.id : null 
+      }],
+      type: 'replacement',
+      source_absent_id: r.id,
+      student_id: r.student_id
     });
   });
 
@@ -142,6 +150,43 @@ router.get('/range', function(req, res) {
   });
 
   res.json(result);
+});
+
+// Mark a replacement class student as present or absent
+router.post("/:id/mark-replacement", function(req, res) {
+  var { student_id, status, source_absent_id } = req.body;
+  if (!student_id || !status || !["present", "absent"].includes(status)) {
+    return res.status(400).json({ error: "student_id and status (present/absent) required" });
+  }
+
+  // Get the original absent record to find the replacement date/time
+  var absentRec = db.prepare("SELECT * FROM attendance_record WHERE id = ?").get(source_absent_id);
+  if (!absentRec || !absentRec.replacement_date) {
+    return res.status(404).json({ error: "Replacement not found" });
+  }
+
+  var addCredit = db.prepare("UPDATE student SET credits = credits + 1 WHERE id = ?");
+  var removeCredit = db.prepare("UPDATE student SET credits = MAX(0, credits - 1) WHERE id = ?");
+  var upsert = db.prepare(
+    "INSERT INTO attendance_record (student_id, date, status, time, end_time, replacement_for_id) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, time = excluded.time, end_time = excluded.end_time, replacement_for_id = COALESCE(excluded.replacement_for_id, replacement_for_id)"
+  );
+
+  var existing = db.prepare("SELECT id, status FROM attendance_record WHERE student_id = ? AND date = ?").get(student_id, absentRec.replacement_date);
+
+  var transaction = db.transaction(function() {
+    if (existing) {
+      if (existing.status === "absent" && status === "present") removeCredit.run(student_id);
+      if (existing.status === "present" && status === "absent") addCredit.run(student_id);
+    } else {
+      if (status === "absent") addCredit.run(student_id);
+    }
+    upsert.run(student_id, absentRec.replacement_date, status, absentRec.replacement_time || null, absentRec.replacement_end_time || null, source_absent_id);
+  });
+  transaction();
+
+  var ar = db.prepare("SELECT * FROM attendance_record WHERE student_id = ? AND date = ?").get(student_id, absentRec.replacement_date);
+  var student = db.prepare("SELECT credits FROM student WHERE id = ?").get(student_id);
+  res.json({ attendance: ar, credits: student.credits });
 });
 
 // Delete a scheduled class

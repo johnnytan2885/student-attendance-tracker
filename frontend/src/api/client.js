@@ -214,8 +214,15 @@ export async function deleteSchedule(id) {
 }
 
 export async function markScheduleAttendance(scheduleId, studentId, status) {
-  return apiFetch(`/api/schedules/${scheduleId}/mark`, {
+  return apiFetch('/api/schedules/' + scheduleId + '/mark', {
     method: 'POST',
-    body: JSON.stringify({ student_id: studentId, status }),
+    body: JSON.stringify({ student_id: studentId, status: status }),
+  });
+}
+
+export async function markReplacementAttendance(sourceAbsentId, studentId, status) {
+  return apiFetch('/api/schedules/' + sourceAbsentId + '/mark-replacement', {
+    method: 'POST',
+    body: JSON.stringify({ student_id: studentId, status: status, source_absent_id: sourceAbsentId }),
   });
 }
