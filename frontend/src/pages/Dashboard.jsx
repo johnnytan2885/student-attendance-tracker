@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSchedulesRange, getAttendanceDates, getTodayAttendance } from '../api/client.js';
+import { getSchedulesRange, getAttendanceDates, getTodayAttendance, getAttendanceByDate } from '../api/client.js';
 
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -11,10 +11,12 @@ function Dashboard() {
   var [schedulesByDate, setSchedulesByDate] = useState({});
   var [attendanceDates, setAttendanceDates] = useState({});
   var [todayAtt, setTodayAtt] = useState([]);
+  var [selectedDayAtt, setSelectedDayAtt] = useState([]);
   var [year, setYear] = useState(new Date().getFullYear());
   var [month, setMonth] = useState(new Date().getMonth());
   var [loading, setLoading] = useState(true);
   var [selectedDay, setSelectedDay] = useState(null);
+  var [sidebarLoading, setSidebarLoading] = useState(false);
 
   useEffect(function() { loadMonth(); }, [year, month]);
 
@@ -48,6 +50,21 @@ function Dashboard() {
       setLoading(false);
     }
   }
+
+  useEffect(function() {
+    if (selectedDay) {
+      setSidebarLoading(true);
+      getAttendanceByDate(selectedDay).then(function(data) {
+        setSelectedDayAtt(data);
+      }).catch(function() {
+        setSelectedDayAtt([]);
+      }).finally(function() {
+        setSidebarLoading(false);
+      });
+    } else {
+      setSelectedDayAtt([]);
+    }
+  }, [selectedDay]);
 
   var firstDay = new Date(year, month, 1).getDay();
   var daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -91,7 +108,10 @@ function Dashboard() {
 
   var selectedSchedules = selectedDay ? (schedulesByDate[selectedDay] || []) : [];
 
+  // Build sidebar: scheduled classes + attendance records for the selected day
   var sidebarCards = [];
+
+  // Scheduled classes for selected day
   for (var si = 0; si < selectedSchedules.length; si++) {
     var sc = selectedSchedules[si];
     var partsStart = (sc.time || '').split(':');
@@ -106,7 +126,7 @@ function Dashboard() {
       }
     }
     sidebarCards.push(
-      <div key={sc.id} className="schedule-card-item">
+      <div key={'sched-' + sc.id} className="schedule-card-item">
         <div className="schedule-card-time">{sc.time}</div>
         <div className="schedule-card-body">
           <strong>{sc.class_name}</strong>
@@ -118,7 +138,21 @@ function Dashboard() {
     );
   }
 
-  // Horizontal timeline 08:00 - 18:00 with lane assignment — includes scheduled classes AND attendance records
+  // Attendance records for selected day (non-scheduled)
+  for (var ai = 0; ai < selectedDayAtt.length; ai++) {
+    var ar = selectedDayAtt[ai];
+    sidebarCards.push(
+      <div key={'att-' + ar.id} className="schedule-card-item">
+        <div className="schedule-card-time">{ar.time || '--:--'}{ar.end_time ? '-' + ar.end_time : ''}</div>
+        <div className="schedule-card-body">
+          <strong>{ar.student_name}</strong>
+          <div className="schedule-card-duration">{ar.status === 'present' ? 'Present' : 'Absent'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Horizontal timeline 08:00 - 18:00
   var todaySchedules = schedulesByDate[todayStr] || [];
   var HOURS_START = 8;
   var HOURS_END = 18;
@@ -134,25 +168,27 @@ function Dashboard() {
     );
   }
 
-  // Sort by start time, then assign lanes
   // Merge scheduled classes and attendance records for today's timeline
-  var timelineItems = todaySchedules.map(function(sc) {
-    return {
+  var timelineItems = [];
+  todaySchedules.forEach(function(sc) {
+    timelineItems.push({
       id: 'sched-' + sc.id,
       time: sc.time,
       end_time: sc.end_time,
       label: sc.class_name,
       students: sc.students.map(function(s) { return s.name; }).join(', ')
-    };
+    });
   });
   todayAtt.forEach(function(ar) {
-    timelineItems.push({
-      id: 'att-' + ar.id,
-      time: ar.time || '',
-      end_time: ar.end_time || '',
-      label: ar.student_name,
-      students: ''
-    });
+    if (ar.time) {
+      timelineItems.push({
+        id: 'att-' + ar.id,
+        time: ar.time,
+        end_time: ar.end_time || '',
+        label: ar.student_name,
+        students: ''
+      });
+    }
   });
 
   var sorted = timelineItems.slice().sort(function(a, b) {
@@ -161,11 +197,11 @@ function Dashboard() {
 
   var lanes = [];
   for (var ti = 0; ti < sorted.length; ti++) {
-    var ts = sorted[ti];
-    var sH = Number((ts.time || '08:00').split(':')[0]);
-    var sM = Number((ts.time || '08:00').split(':')[1]);
-    var eH = ts.end_time ? Number(ts.end_time.split(':')[0]) : (sH + 1);
-    var eM = ts.end_time ? Number(ts.end_time.split(':')[1]) : sM;
+    var item = sorted[ti];
+    var sH = Number((item.time || '08:00').split(':')[0]);
+    var sM = Number((item.time || '08:00').split(':')[1]);
+    var eH = item.end_time ? Number(item.end_time.split(':')[0]) : (sH + 1);
+    var eM = item.end_time ? Number(item.end_time.split(':')[1]) : sM;
     var startMin = sH * 60 + sM;
     var endMin = eH * 60 + eM;
 
@@ -185,7 +221,7 @@ function Dashboard() {
       assignedLane = lanes.length;
       lanes.push([]);
     }
-    lanes[assignedLane].push({ schedule: ts, start: startMin, end: endMin });
+    lanes[assignedLane].push({ schedule: item, start: startMin, end: endMin });
   }
 
   var timelineBlocks = [];
@@ -227,7 +263,7 @@ function Dashboard() {
 
       {timelineItems.length > 0 && (
         <div className="card htimeline-card">
-          <h3 className="section-title">Today - {todayStr}</h3>
+          <h3 className="section-title">Today's Schedule - {todayStr}</h3>
           <div className="htimeline-wrap">
             <div className="htimeline-nowrap">
               <div className="htimeline-labels">{hourLabels}</div>
@@ -261,7 +297,8 @@ function Dashboard() {
           {!loading && selectedDay && (
             <div className="card" style={{ padding: 14 }}>
               <h3 className="section-title" style={{ fontSize: 15, marginBottom: 8 }}>{selectedDay}</h3>
-              {sidebarCards.length === 0 ? (<p className="status-text">No classes scheduled</p>) : (
+              {sidebarLoading && <p className="status-text">Loading...</p>}
+              {!sidebarLoading && sidebarCards.length === 0 ? (<p className="status-text">No classes scheduled</p>) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{sidebarCards}</div>
               )}
             </div>

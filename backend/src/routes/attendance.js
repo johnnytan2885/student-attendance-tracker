@@ -84,6 +84,14 @@ router.get('/student/:studentId', (req, res) => {
   res.json(records);
 });
 
+// Get attendance records for a specific date
+router.get("/date/:dateStr", function(req, res) {
+  var records = db.prepare(
+    "SELECT ar.*, s.name as student_name FROM attendance_record ar JOIN student s ON s.id = ar.student_id WHERE ar.date = ? ORDER BY ar.time"
+  ).all(req.params.dateStr);
+  res.json(records);
+});
+
 // Get today's attendance records with student name and time for timeline
 router.get('/today', (req, res) => {
   var today = new Date().toISOString().slice(0, 10);

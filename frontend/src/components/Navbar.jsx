@@ -17,7 +17,7 @@ function Navbar({ onLogout }) {
         {isLoggedIn && (
           <div className="navbar-links">
             <Link to="/dashboard" className="nav-link">Dashboard</Link>
-            <Link to="/dashboard" className="nav-link">Students</Link>
+            <Link to="/students" className="nav-link">Students</Link>
             <Link to="/attendance" className="nav-link">Attendance</Link>
             <Link to="/schedule" className="nav-link">Schedule</Link>
             <Link to="/classes" className="nav-link">Classes</Link>
