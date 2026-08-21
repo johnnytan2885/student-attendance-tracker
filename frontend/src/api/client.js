@@ -119,10 +119,10 @@ export async function getAttendanceByDate(dateStr) {
   return apiFetch('/api/attendance/date/' + dateStr);
 }
 
-export async function editReplacementDate(attendanceId, replacementDate) {
-  return apiFetch(`/api/attendance/${attendanceId}/replacement`, {
+export async function editReplacementDate(attendanceId, replacementDate, time, endTime) {
+  return apiFetch('/api/attendance/' + attendanceId + '/replacement', {
     method: 'PATCH',
-    body: JSON.stringify({ replacement_date: replacementDate }),
+    body: JSON.stringify({ replacement_date: replacementDate, time: time || null, end_time: endTime || null }),
   });
 }
 
@@ -137,10 +137,10 @@ export async function deleteAttendance(attendanceId) {
   return apiFetch(`/api/attendance/${attendanceId}`, { method: 'DELETE' });
 }
 
-export async function setReplacement(studentId, attendanceId, replacementDate) {
+export async function setReplacement(studentId, attendanceId, replacementDate, time, endTime) {
   return apiFetch('/api/attendance/replacement', {
     method: 'POST',
-    body: JSON.stringify({ student_id: studentId, attendance_id: attendanceId, replacement_date: replacementDate }),
+    body: JSON.stringify({ student_id: studentId, attendance_id: attendanceId, replacement_date: replacementDate, time: time || null, end_time: endTime || null }),
   });
 }
 

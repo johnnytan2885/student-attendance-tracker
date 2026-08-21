@@ -168,7 +168,7 @@ router.delete('/:id', (req, res) => {
 
 // Set replacement class
 router.post('/replacement', (req, res) => {
-  const { student_id, attendance_id, replacement_date } = req.body;
+  const { student_id, attendance_id, replacement_date, time, end_time } = req.body;
 
   if (!student_id || !attendance_id || !replacement_date || !/^\d{4}-\d{2}-\d{2}$/.test(replacement_date)) {
     return res.status(400).json({ error: 'student_id, attendance_id, and valid replacement_date (YYYY-MM-DD) are required' });
@@ -200,19 +200,22 @@ router.post('/replacement', (req, res) => {
   const transaction = db.transaction(() => {
     db.prepare('UPDATE attendance_record SET replacement_date = ? WHERE id = ?').run(replacement_date, attendance_id);
     db.prepare('UPDATE student SET credits = credits - 1 WHERE id = ?').run(student_id);
+    var insertUpsert = "INSERT INTO attendance_record (student_id, date, status, time, end_time, replacement_for_id) VALUES (?, ?, 'present', ?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = 'present', time = excluded.time, end_time = excluded.end_time, replacement_for_id = COALESCE(excluded.replacement_for_id, replacement_for_id)";
+    db.prepare(insertUpsert).run(student_id, replacement_date, time || null, end_time || null, attendance_id);
   });
 
   transaction();
 
   const updated = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(attendance_id);
   const updatedStudent = db.prepare('SELECT credits FROM student WHERE id = ?').get(student_id);
-  res.json({ attendance: updated, credits: updatedStudent.credits });
+  const replacementRecord = db.prepare('SELECT * FROM attendance_record WHERE student_id = ? AND date = ? AND replacement_for_id = ?').get(student_id, replacement_date, attendance_id);
+  res.json({ attendance: updated, credits: updatedStudent.credits, replacementRecord: replacementRecord });
 });
 
 
 // Edit replacement date (only if date has not passed yet)
 router.patch('/:id/replacement', (req, res) => {
-  const { replacement_date } = req.body;
+  const { replacement_date, time, end_time } = req.body;
   if (!replacement_date || !/^\d{4}-\d{2}-\d{2}$/.test(replacement_date)) {
     return res.status(400).json({ error: 'Valid replacement_date (YYYY-MM-DD) is required' });
   }
@@ -235,6 +238,12 @@ router.patch('/:id/replacement', (req, res) => {
   }
 
   db.prepare('UPDATE attendance_record SET replacement_date = ? WHERE id = ?').run(replacement_date, req.params.id);
+  if (time !== undefined || end_time !== undefined) {
+    var replacementRec = db.prepare('SELECT id FROM attendance_record WHERE replacement_for_id = ? AND date = ?').get(req.params.id, record.replacement_date);
+    if (replacementRec) {
+      db.prepare('UPDATE attendance_record SET date = ?, time = ?, end_time = ? WHERE id = ?').run(replacement_date, time || null, end_time || null, replacementRec.id);
+    }
+  }
   const updated = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id);
   res.json({ attendance: updated });
 });

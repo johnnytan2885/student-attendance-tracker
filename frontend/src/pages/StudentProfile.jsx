@@ -23,6 +23,8 @@ function StudentProfile() {
   const [showReplacement, setShowReplacement] = useState(false);
   const [selectedAttendanceId, setSelectedAttendanceId] = useState(null);
   const [replacementDate, setReplacementDate] = useState('');
+  const [replacementTime, setReplacementTime] = useState('');
+  const [replacementEndTime, setReplacementEndTime] = useState('');
   const [replacing, setReplacing] = useState(false);
 
   const [showEditAttendance, setShowEditAttendance] = useState(null);
@@ -92,13 +94,17 @@ function StudentProfile() {
     setReplacing(true);
     setError('');
     try {
-      const result = await setReplacement(Number(id), selectedAttendanceId, replacementDate);
-      setStudent(prev => ({ ...prev, credits: result.credits }));
-      setAttendance(prev =>
-        prev.map(a => a.id === selectedAttendanceId ? { ...a, replacement_date: replacementDate } : a)
-      );
+      var result = await setReplacement(Number(id), selectedAttendanceId, replacementDate, replacementTime || null, replacementEndTime || null);
+      setStudent(function(prev) { return { ...prev, credits: result.credits }; });
+      setAttendance(function(prev) {
+        return prev.map(function(a) {
+          return a.id === selectedAttendanceId ? { ...a, replacement_date: replacementDate } : a;
+        });
+      });
       setShowReplacement(false);
       setReplacementDate('');
+      setReplacementTime('');
+      setReplacementEndTime('');
       setSelectedAttendanceId(null);
     } catch (err) {
       setError(err.message);
@@ -282,6 +288,16 @@ function StudentProfile() {
             <div className="form-group">
               <label htmlFor="replacement-date">Replacement Date</label>
               <input id="replacement-date" type="date" value={replacementDate} onChange={e => setReplacementDate(e.target.value)} required />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label htmlFor="replacement-time">Start Time</label>
+                <input id="replacement-time" type="time" value={replacementTime} onChange={e => setReplacementTime(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="replacement-end">End Time</label>
+                <input id="replacement-end" type="time" value={replacementEndTime} onChange={e => setReplacementEndTime(e.target.value)} />
+              </div>
             </div>
             {error && <p className="form-error">{error}</p>}
             <div className="modal-actions">
