@@ -106,8 +106,8 @@ router.get('/dates', (req, res) => {
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to dates required' });
   const dates = db.prepare(
-    'SELECT DISTINCT date FROM attendance_record WHERE date >= ? AND date <= ? UNION SELECT DISTINCT date FROM scheduled_class WHERE date >= ? AND date <= ? ORDER BY date'
-  ).all(from, to);
+    'SELECT DISTINCT date FROM (SELECT date FROM attendance_record WHERE date >= ? AND date <= ? UNION ALL SELECT date FROM scheduled_class WHERE date >= ? AND date <= ?) ORDER BY date'
+  ).all(from, to, from, to);
   res.json(dates.map(function(d) { return d.date; }));
 });
 
