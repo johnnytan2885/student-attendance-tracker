@@ -27,17 +27,14 @@ function Dashboard() {
     var lastDay = new Date(year, month + 1, 0).getDate();
     var last = year + '-' + pad(month + 1) + '-' + pad(lastDay);
     try {
-      var [schedData, attDates, todayData] = await Promise.all([
+      var [schedData, attDates] = await Promise.all([
         getSchedulesRange(first, last),
-        getAttendanceDates(first, last),
-        getTodayAttendance()
+        getAttendanceDates(first, last)
       ]);
       setSchedules(schedData);
-      setTodayAtt(todayData);
       var attMap = {};
       attDates.forEach(function(d) { attMap[d] = true; });
       setAttendanceDates(attMap);
-
       var byDate = {};
       schedData.forEach(function(sc) {
         if (!byDate[sc.date]) byDate[sc.date] = [];
@@ -107,56 +104,73 @@ function Dashboard() {
   }
 
   var selectedSchedules = selectedDay ? (schedulesByDate[selectedDay] || []) : [];
-
-  // Build sidebar: scheduled classes + attendance records for the selected day
-  var sidebarCards = [];
-
-  // Scheduled classes for selected day
-  for (var si = 0; si < selectedSchedules.length; si++) {
-    var sc = selectedSchedules[si];
-    var partsStart = (sc.time || '').split(':');
-    var partsEnd = (sc.end_time || '').split(':');
-    var durStr = '';
-    if (sc.time && sc.end_time) {
-      var min = (Number(partsEnd[0]) * 60 + Number(partsEnd[1])) - (Number(partsStart[0]) * 60 + Number(partsStart[1]));
-      if (min > 0) {
-        durStr = ' (' + Math.floor(min / 60) + 'h';
-        if (min % 60 > 0) durStr += min % 60 + 'm';
-        durStr += ')';
-      }
-    }
-    sidebarCards.push(
-      <div key={'sched-' + sc.id} className="schedule-card-item">
-        <div className="schedule-card-time">{sc.time}</div>
-        <div className="schedule-card-body">
-          <strong>{sc.class_name}</strong>
-          <div className="schedule-card-duration">{sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}</div>
-          <div className="schedule-card-students">{sc.students.map(function(s) {
-            var label = s.name;
-            if (s.attendance_status === 'present') label += ' (Present)';
-            else if (s.attendance_status === 'absent') label += ' (Absent)';
-            return label;
-          }).join(', ')}</div>
-          {sc.notes && <div className="profile-detail">{sc.notes}</div>}
-        </div>
-      </div>
-    );
-  }
-
-  // Attendance records for selected day (non-scheduled) — skip records already covered by a scheduled class
-  var scheduledStudentIds = {};
-  for (var si2 = 0; si2 < selectedSchedules.length; si2++) {
-    var sched = selectedSchedules[si2];
-    if (sched.type === 'scheduled' && sched.students) {
-      for (var si3 = 0; si3 < sched.students.length; si3++) {
-        scheduledStudentIds[sched.students[si3].id] = true;
-      }
-    }
-  }
+  var selectedAttMap = {};
   for (var ai = 0; ai < selectedDayAtt.length; ai++) {
-    var ar = selectedDayAtt[ai];
-    // Skip if this student+date combo is already shown in a scheduled class, or if this is a replacement marking record
-    if (scheduledStudentIds[ar.student_id] || ar.replacement_for_id) continue;
+    selectedAttMap[selectedDayAtt[ai].student_id] = selectedDayAtt[ai];
+  }
+
+  var sidebarCards = [];
+  var usedStudentIds = {};
+
+  // Scheduled and replacement classes from schedulesByDate
+  for (var si = 0; si < selectedSchedules.length; si++) {
+    (function(sc) {
+      var partsStart = (sc.time || '').split(':');
+      var partsEnd = (sc.end_time || '').split(':');
+      var durStr = '';
+      if (sc.time && sc.end_time) {
+        var min = (Number(partsEnd[0]) * 60 + Number(partsEnd[1])) - (Number(partsStart[0]) * 60 + Number(partsStart[1]));
+        if (min > 0) {
+          durStr = ' (' + Math.floor(min / 60) + 'h';
+          if (min % 60 > 0) durStr += min % 60 + 'm';
+          durStr += ')';
+        }
+      }
+
+      var typeLabel = sc.type === 'replacement' ? 'Replacement' : 'Scheduled';
+      var typeClass = sc.type === 'replacement' ? 'type-replacement' : 'type-scheduled';
+
+      if (sc.type === 'replacement' && sc.students && sc.students.length > 0) {
+        var st = sc.students[0];
+        usedStudentIds[st.id] = true;
+        sidebarCards.push(
+          <div key={sc.id} className={'schedule-card-item type-badge ' + typeClass}>
+            <div className="schedule-card-time">{sc.time || '--:--'}</div>
+            <div className="schedule-card-body">
+              <strong>{st.name}</strong>
+              <span className={typeClass + '-label'}>{typeLabel}</span>
+              <div className="schedule-card-duration">{sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}</div>
+              <div className="schedule-card-students">{st.name} ({st.attendance_status === 'present' ? 'Present' : st.attendance_status === 'absent' ? 'Absent' : 'Not marked'})</div>
+            </div>
+          </div>
+        );
+      } else if (sc.type === 'scheduled') {
+        sidebarCards.push(
+          <div key={sc.id} className="schedule-card-item">
+            <div className="schedule-card-time">{sc.time}</div>
+            <div className="schedule-card-body">
+              <strong>{sc.class_name}</strong>
+              <span className="type-scheduled-label">Scheduled</span>
+              <div className="schedule-card-duration">{sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}</div>
+              <div className="schedule-card-students">{sc.students.map(function(s) {
+                usedStudentIds[s.id] = true;
+                var label = s.name;
+                if (s.attendance_status === 'present') label += ' (Present)';
+                else if (s.attendance_status === 'absent') label += ' (Absent)';
+                else label += ' (Not marked)';
+                return label;
+              }).join(', ')}</div>
+            </div>
+          </div>
+        );
+      }
+    })(selectedSchedules[si]);
+  }
+
+  // Normal attendance records for selected day (not already in scheduled/replacement)
+  for (var ai2 = 0; ai2 < selectedDayAtt.length; ai2++) {
+    var ar = selectedDayAtt[ai2];
+    if (usedStudentIds[ar.student_id] || ar.replacement_for_id || ar.scheduled_class_id) continue;
     var arStart = (ar.time || '').split(':');
     var arEnd = (ar.end_time || '').split(':');
     var arDurStr = '';
@@ -165,113 +179,16 @@ function Dashboard() {
       if (arMin > 0) arDurStr = ' (' + Math.floor(arMin / 60) + 'h' + (arMin % 60 > 0 ? arMin % 60 + 'm' : '') + ')';
     }
     sidebarCards.push(
-      <div key={'att-' + ar.id} className="schedule-card-item">
+      <div key={'att-' + ar.id} className="schedule-card-item type-badge type-attendance">
         <div className="schedule-card-time">{ar.time || '--:--'}{ar.end_time ? ' - ' + ar.end_time : ''}</div>
         <div className="schedule-card-body">
           <strong>{ar.student_name}</strong>
+          <span className="type-attendance-label">Attendance</span>
           <div className="schedule-card-duration">{ar.time}{ar.end_time ? ' - ' + ar.end_time : ''}{arDurStr}</div>
           <div className="schedule-card-students">{ar.student_name} ({ar.status === 'present' ? 'Present' : 'Absent'})</div>
         </div>
       </div>
     );
-  }
-
-  // Horizontal timeline 08:00 - 18:00
-  var todaySchedules = schedulesByDate[todayStr] || [];
-  var HOURS_START = 8;
-  var HOURS_END = 18;
-  var HOURS_TOTAL = HOURS_END - HOURS_START;
-  var MINUTES_TOTAL = HOURS_TOTAL * 60;
-
-  var hourLabels = [];
-  for (var h = HOURS_START; h <= HOURS_END; h++) {
-    hourLabels.push(
-      <div key={h} className="htimeline-label" style={{ left: ((h - HOURS_START) / HOURS_TOTAL) * 100 + '%' }}>
-        {String(h).padStart(2, '0') + ':00'}
-      </div>
-    );
-  }
-
-  // Merge scheduled classes and attendance records for today's timeline
-  var timelineItems = [];
-  todaySchedules.forEach(function(sc) {
-    timelineItems.push({
-      id: 'sched-' + sc.id,
-      time: sc.time,
-      end_time: sc.end_time,
-      label: sc.class_name,
-      students: sc.students.map(function(s) { return s.name; }).join(', ')
-    });
-  });
-  todayAtt.forEach(function(ar) {
-    if (ar.time) {
-      timelineItems.push({
-        id: 'att-' + ar.id,
-        time: ar.time,
-        end_time: ar.end_time || '',
-        label: ar.student_name,
-        students: ''
-      });
-    }
-  });
-
-  var sorted = timelineItems.slice().sort(function(a, b) {
-    return (a.time || '00:00').localeCompare(b.time || '00:00');
-  });
-
-  var lanes = [];
-  for (var ti = 0; ti < sorted.length; ti++) {
-    var item = sorted[ti];
-    var sH = Number((item.time || '08:00').split(':')[0]);
-    var sM = Number((item.time || '08:00').split(':')[1]);
-    var eH = item.end_time ? Number(item.end_time.split(':')[0]) : (sH + 1);
-    var eM = item.end_time ? Number(item.end_time.split(':')[1]) : sM;
-    var startMin = sH * 60 + sM;
-    var endMin = eH * 60 + eM;
-
-    var assignedLane = -1;
-    for (var li = 0; li < lanes.length; li++) {
-      var conflict = false;
-      for (var bi = 0; bi < lanes[li].length; bi++) {
-        var existing = lanes[li][bi];
-        if (startMin < existing.end && endMin > existing.start) {
-          conflict = true;
-          break;
-        }
-      }
-      if (!conflict) { assignedLane = li; break; }
-    }
-    if (assignedLane === -1) {
-      assignedLane = lanes.length;
-      lanes.push([]);
-    }
-    lanes[assignedLane].push({ schedule: item, start: startMin, end: endMin });
-  }
-
-  var timelineBlocks = [];
-  var laneHeight = 24;
-  var trackHeight = Math.max(lanes.length * laneHeight, laneHeight);
-
-  for (var laneIdx = 0; laneIdx < lanes.length; laneIdx++) {
-    for (var bi = 0; bi < lanes[laneIdx].length; bi++) {
-      var entry = lanes[laneIdx][bi];
-      var ts2 = entry.schedule;
-      var classStartMin = Math.max(entry.start - HOURS_START * 60, 0);
-      var classEndMin = Math.min(entry.end - HOURS_START * 60, MINUTES_TOTAL);
-      var leftPct = (classStartMin / MINUTES_TOTAL) * 100;
-      var widthPct = Math.max(((classEndMin - classStartMin) / MINUTES_TOTAL) * 100, 1.5);
-
-      timelineBlocks.push(
-        <div
-          key={ts2.id}
-          className="htimeline-block"
-          style={{ left: leftPct + '%', width: widthPct + '%', top: (laneIdx * laneHeight) + 'px', height: (laneHeight - 2) + 'px' }}
-        >
-          <span className="htimeline-block-name">{ts2.label}</span>
-          <span className="htimeline-block-students">{ts2.students}</span>
-        </div>
-      );
-    }
   }
 
   return (
@@ -284,20 +201,6 @@ function Dashboard() {
           <button className="btn-secondary btn-sm" onClick={function() { navigate('/schedule'); }}>Schedule</button>
         </div>
       </div>
-
-      {timelineItems.length > 0 && (
-        <div className="card htimeline-card">
-          <h3 className="section-title">Today's Schedule - {todayStr}</h3>
-          <div className="htimeline-wrap">
-            <div className="htimeline-nowrap">
-              <div className="htimeline-labels">{hourLabels}</div>
-              <div className="htimeline-track" style={{ height: trackHeight + 'px' }}>
-                {timelineBlocks}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="dashboard-layout">
         <div className="card dashboard-calendar-card" style={{ padding: 12 }}>
@@ -312,7 +215,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="dashboard-sidebar" style={{ width: 300 }}>
+        <div className="dashboard-sidebar" style={{ width: 320 }}>
           {!loading && !selectedDay && (
             <div className="card" style={{ padding: 16, textAlign: 'center' }}>
               <p className="status-text" style={{ fontSize: 14 }}>Click a date to see scheduled classes</p>

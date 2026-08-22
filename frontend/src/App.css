@@ -961,6 +961,36 @@ label {
   font-size: 14px;
 }
 
+/* Type badges for dashboard sidebar */
+.type-scheduled-label,
+.type-replacement-label,
+.type-attendance-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.type-scheduled-label {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.type-replacement-label {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.type-attendance-label {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+
+
 .schedule-card-students {
   font-size: 13px;
   color: var(--color-text-secondary);
