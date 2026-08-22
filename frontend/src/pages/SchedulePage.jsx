@@ -191,7 +191,7 @@ function SchedulePage() {
         <p className="status-text">No scheduled classes yet.</p>
       ) : (
         <div className="attendance-table">
-          <div className="attendance-table-header" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 100px' }}>
+          <div className="attendance-table-header" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 130px' }}>
             <span>Date</span>
             <span>Start</span>
             <span>End</span>
@@ -210,7 +210,7 @@ function SchedulePage() {
                     var rowKey = sc.id + '-' + st.id;
                     var isFirst = ssi === 0;
                     rows.push(
-                      <div key={rowKey} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 100px' }}>
+                      <div key={rowKey} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 130px' }}>
                         <span>{isFirst ? sc.date : ''}</span>
                         <span>{isFirst ? sc.time : ''}</span>
                         <span>{isFirst ? (sc.end_time || '—') : ''}</span>
@@ -245,7 +245,7 @@ function SchedulePage() {
                 }
                 if (students.length === 0) {
                   rows.push(
-                    <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 100px' }}>
+                    <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 60px 60px 1fr 1fr 130px' }}>
                       <span>{sc.date}</span>
                       <span>{sc.time}</span>
                       <span>{sc.end_time || '—'}</span>
