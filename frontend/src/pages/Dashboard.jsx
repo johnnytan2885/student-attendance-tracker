@@ -170,7 +170,7 @@ function Dashboard() {
         <div className="schedule-card-body">
           <strong>{ar.student_name}</strong>
           <div className="schedule-card-duration">{ar.time}{ar.end_time ? ' - ' + ar.end_time : ''}{arDurStr}</div>
-          <div className="schedule-card-students">{ar.status === 'present' ? 'Present' : 'Absent'}</div>
+          <div className="schedule-card-students">{ar.student_name} ({ar.status === 'present' ? 'Present' : 'Absent'})</div>
         </div>
       </div>
     );
