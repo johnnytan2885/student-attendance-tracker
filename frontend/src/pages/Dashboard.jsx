@@ -133,8 +133,8 @@ function Dashboard() {
           <div className="schedule-card-duration">{sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}</div>
           <div className="schedule-card-students">{sc.students.map(function(s) {
             var label = s.name;
-            if (s.attendance_status === 'present') label += ' (P)';
-            else if (s.attendance_status === 'absent') label += ' (A)';
+            if (s.attendance_status === 'present') label += ' (Present)';
+            else if (s.attendance_status === 'absent') label += ' (Absent)';
             return label;
           }).join(', ')}</div>
           {sc.notes && <div className="profile-detail">{sc.notes}</div>}
