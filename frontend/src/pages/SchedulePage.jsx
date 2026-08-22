@@ -219,20 +219,20 @@ function SchedulePage() {
                         <span className="attendance-row-actions">
                           {!attStatus && (
                             <div className="attendance-row-actions">
-                              <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
-                              <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
+                              <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>Present</button>
+                              <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>Absent</button>
                             </div>
                           )}
                           {attStatus === 'present' && (
                             <div className="attendance-row-actions">
-                              <span className="inactive-label" style={{ color: '#065f46', background: '#d1fae5', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>P</span>
-                              <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>A</button>
+                              <span className="inactive-label" style={{ color: '#065f46', background: '#d1fae5', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>Present</span>
+                              <button className="btn-danger btn-xs" onClick={function() { handleMark(sc, st.id, 'absent'); }}>Absent</button>
                             </div>
                           )}
                           {attStatus === 'absent' && (
                             <div className="attendance-row-actions">
-                              <span className="inactive-label" style={{ color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>A</span>
-                              <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>P</button>
+                              <span className="inactive-label" style={{ color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>Absent</span>
+                              <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>Present</button>
                             </div>
                           )}
                           {isFirst && sc.type !== 'replacement' && (
