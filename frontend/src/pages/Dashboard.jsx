@@ -157,12 +157,20 @@ function Dashboard() {
     var ar = selectedDayAtt[ai];
     // Skip if this student+date combo is already shown in a scheduled class, or if this is a replacement marking record
     if (scheduledStudentIds[ar.student_id] || ar.replacement_for_id) continue;
+    var arStart = (ar.time || '').split(':');
+    var arEnd = (ar.end_time || '').split(':');
+    var arDurStr = '';
+    if (ar.time && ar.end_time) {
+      var arMin = (Number(arEnd[0]) * 60 + Number(arEnd[1])) - (Number(arStart[0]) * 60 + Number(arStart[1]));
+      if (arMin > 0) arDurStr = ' (' + Math.floor(arMin / 60) + 'h' + (arMin % 60 > 0 ? arMin % 60 + 'm' : '') + ')';
+    }
     sidebarCards.push(
       <div key={'att-' + ar.id} className="schedule-card-item">
-        <div className="schedule-card-time">{ar.time || '--:--'}{ar.end_time ? '-' + ar.end_time : ''}</div>
+        <div className="schedule-card-time">{ar.time || '--:--'}{ar.end_time ? ' - ' + ar.end_time : ''}</div>
         <div className="schedule-card-body">
           <strong>{ar.student_name}</strong>
-          <div className="schedule-card-duration">{ar.status === 'present' ? 'Present' : 'Absent'}</div>
+          <div className="schedule-card-duration">{ar.time}{ar.end_time ? ' - ' + ar.end_time : ''}{arDurStr}</div>
+          <div className="schedule-card-students">{ar.status === 'present' ? 'Present' : 'Absent'}</div>
         </div>
       </div>
     );
