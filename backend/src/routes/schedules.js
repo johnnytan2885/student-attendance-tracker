@@ -115,6 +115,7 @@ router.get('/', function(req, res) {
       time: r.replacement_time || null,
       end_time: r.replacement_end_time || null,
       students: [{ 
+        id: r.student_id,
         name: r.student_name, 
         attendance_status: markRecord ? markRecord.status : null, 
         attendance_id: markRecord ? markRecord.id : null 
@@ -157,6 +158,7 @@ router.get('/range', function(req, res) {
       time: r.replacement_time || null,
       end_time: r.replacement_end_time || null,
       students: [{ 
+        id: r.student_id,
         name: r.student_name, 
         attendance_status: markRecord ? markRecord.status : null, 
         attendance_id: markRecord ? markRecord.id : null 
