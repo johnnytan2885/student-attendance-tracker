@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
 import { getClasses, getStudents, createSchedule, getSchedules, deleteSchedule, markScheduleAttendance, markReplacementAttendance } from '../api/client.js';
+import { formatTime24to12, formatDate } from '../utils.js';
 
 function SchedulePage() {
   var navigate = useNavigate();
@@ -246,8 +247,8 @@ function SchedulePage() {
                 if (students.length === 0) {
                   rows.push(
                     <div key={sc.id} className="attendance-table-row" style={{ gridTemplateColumns: '90px 55px 55px 1fr 1fr 1fr' }}>
-                      <span>{sc.date}</span>
-                      <span>{sc.time}</span>
+                      <span>{formatDate(sc.date)}</span>
+                      <span>{formatTime24to12(sc.time)}</span>
                       <span>{sc.end_time || '—'}</span>
                       <span>{sc.class_name}</span>
                       <span className="status-text">No students</span>

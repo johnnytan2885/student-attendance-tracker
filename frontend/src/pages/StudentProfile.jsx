@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
 import AttendanceCalendar from '../components/AttendanceCalendar.jsx';
 import { getStudent, getStudentAttendance, updateStudent, archiveStudent, deleteStudent, setReplacement, editAttendance, deleteAttendance, editReplacementDate } from '../api/client.js';
+import { formatTime24to12, formatDate, formatDateTimeRange } from '../utils.js';
 
 function StudentProfile() {
   const { id } = useParams();
@@ -215,10 +216,10 @@ function StudentProfile() {
                     key={record.id}
                     style={{ gridTemplateColumns: '90px 90px 1fr 1fr 100px' }} className={`attendance-table-row ${record.status === 'absent' ? 'row-absent' : 'row-present'}`}
                   >
-                    <span>{record.date}</span>
-                    <span>{record.time ? record.time.slice(0, 5) + (record.end_time ? '/' + record.end_time.slice(0, 5) : '') : '—'}</span>
+                    <span>{formatDate(record.date)}</span>
+                    <span>{record.time ? formatTime24to12(record.time) + (record.end_time ? '/' + formatTime24to12(record.end_time) : '') : '—'}</span>
                     <span>{record.status === 'present' ? 'Present' : 'Absent'}</span>
-                    <span>{record.replacement_date || '—'}</span>
+                    <span>{record.replacement_date ? formatDate(record.replacement_date) : '—'}</span>
                     <span className="attendance-row-actions">
                       <button className="btn-secondary btn-xs" onClick={() => { setShowEditAttendance(record); setEditAttendanceStatus(record.status); }}>Edit</button>
                       <button className="btn-danger btn-xs" onClick={() => setShowDeleteAttendance(record)}>Delete</button>
@@ -311,7 +312,7 @@ function StudentProfile() {
       {showEditAttendance && (
         <Modal title="Edit Attendance Record" onClose={() => setShowEditAttendance(null)}>
           <p className="replacement-info">
-            Change status for {showEditAttendance.date}. {showEditAttendance.status === 'absent' ? 'Changing to Present will remove 1 credit.' : 'Changing to Absent will add 1 credit.'}
+            Change status for {formatDate(showEditAttendance.date)}. {showEditAttendance.status === 'absent' ? 'Changing to Present will remove 1 credit.' : 'Changing to Absent will add 1 credit.'}
           </p>
           <div className="form-group">
             <label htmlFor="edit-att-status">Status</label>
@@ -329,7 +330,7 @@ function StudentProfile() {
 
       {showDeleteAttendance && (
         <Modal title="Delete Attendance Record" onClose={() => setShowDeleteAttendance(null)}>
-          <p>Are you sure you want to delete the attendance record for <strong>{showDeleteAttendance.date}</strong>?</p>
+          <p>Are you sure you want to delete the attendance record for <strong>{formatDate(showDeleteAttendance.date)}</strong>?</p>
           {showDeleteAttendance.status === 'absent' && <p className="replacement-info">This will also remove the 1 credit awarded for this absence.</p>}
           <div className="modal-actions">
             <button className="btn-secondary" onClick={() => setShowDeleteAttendance(null)}>Cancel</button>

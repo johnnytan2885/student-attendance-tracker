@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSchedulesRange, getAttendanceDates, getTodayAttendance, getAttendanceByDate } from '../api/client.js';
+import { getSchedulesRange, getAttendanceDates, getAttendanceByDate } from '../api/client.js';
+import { formatTime24to12, formatDate, formatDateTimeRange, calcDuration } from '../utils.js';
 
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -147,11 +148,11 @@ function Dashboard() {
       } else if (sc.type === 'scheduled') {
         sidebarCards.push(
           <div key={sc.id} className="schedule-card-item">
-            <div className="schedule-card-time">{sc.time}</div>
+            <div className="schedule-card-time">{formatTime24to12(sc.time)}</div>
             <div className="schedule-card-body">
               <strong>{sc.class_name}</strong>
               <span className="type-scheduled-label">Scheduled</span>
-              <div className="schedule-card-duration">{sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}</div>
+              <div className="schedule-card-duration">{formatDateTimeRange(sc.time, sc.end_time)}{calcDuration(sc.time, sc.end_time)}</div>
               <div className="schedule-card-students">{sc.students.map(function(s) {
                 usedStudentIds[s.id] = true;
                 var label = s.name;
@@ -223,7 +224,7 @@ function Dashboard() {
           )}
           {!loading && selectedDay && (
             <div className="card" style={{ padding: 14 }}>
-              <h3 className="section-title" style={{ fontSize: 15, marginBottom: 8 }}>{selectedDay}</h3>
+              <h3 className="section-title" style={{ fontSize: 15, marginBottom: 8 }}>{formatDate(selectedDay)}</h3>
               {sidebarLoading && <p className="status-text">Loading...</p>}
               {!sidebarLoading && sidebarCards.length === 0 ? (<p className="status-text">No classes scheduled</p>) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{sidebarCards}</div>
