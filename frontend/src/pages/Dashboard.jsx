@@ -136,11 +136,11 @@ function Dashboard() {
         usedStudentIds[st.id] = true;
         sidebarCards.push(
           <div key={sc.id} className={'schedule-card-item type-badge ' + typeClass}>
-            <div className="schedule-card-time">{sc.time || '--:--'}</div>
+            <div className="schedule-card-time">{formatTime24to12(sc.time)}</div>
             <div className="schedule-card-body">
               <strong>{st.name}</strong>
               <span className={typeClass + '-label'}>{typeLabel}</span>
-              <div className="schedule-card-duration">{sc.time}{sc.end_time ? ' - ' + sc.end_time : ''}{durStr}</div>
+              <div className="schedule-card-duration">{formatDateTimeRange(sc.time, sc.end_time)}{calcDuration(sc.time, sc.end_time)}</div>
               <div className="schedule-card-students">{st.name} ({st.attendance_status === 'present' ? 'Present' : st.attendance_status === 'absent' ? 'Absent' : 'Not marked'})</div>
             </div>
           </div>
@@ -172,20 +172,13 @@ function Dashboard() {
   for (var ai2 = 0; ai2 < selectedDayAtt.length; ai2++) {
     var ar = selectedDayAtt[ai2];
     if (usedStudentIds[ar.student_id] || ar.replacement_for_id || ar.scheduled_class_id) continue;
-    var arStart = (ar.time || '').split(':');
-    var arEnd = (ar.end_time || '').split(':');
-    var arDurStr = '';
-    if (ar.time && ar.end_time) {
-      var arMin = (Number(arEnd[0]) * 60 + Number(arEnd[1])) - (Number(arStart[0]) * 60 + Number(arStart[1]));
-      if (arMin > 0) arDurStr = ' (' + Math.floor(arMin / 60) + 'h' + (arMin % 60 > 0 ? arMin % 60 + 'm' : '') + ')';
-    }
     sidebarCards.push(
       <div key={'att-' + ar.id} className="schedule-card-item type-badge type-attendance">
-        <div className="schedule-card-time">{ar.time || '--:--'}{ar.end_time ? ' - ' + ar.end_time : ''}</div>
+        <div className="schedule-card-time">{formatTime24to12(ar.time)}{ar.end_time ? ' - ' + formatTime24to12(ar.end_time) : ''}</div>
         <div className="schedule-card-body">
           <strong>{ar.student_name}</strong>
           <span className="type-attendance-label">Attendance</span>
-          <div className="schedule-card-duration">{ar.time}{ar.end_time ? ' - ' + ar.end_time : ''}{arDurStr}</div>
+          <div className="schedule-card-duration">{formatDateTimeRange(ar.time, ar.end_time)}{calcDuration(ar.time, ar.end_time)}</div>
           <div className="schedule-card-students">{ar.student_name} ({ar.status === 'present' ? 'Present' : 'Absent'})</div>
         </div>
       </div>
