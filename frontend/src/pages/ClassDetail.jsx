@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
-import { getClass, createStage, updateStage, deleteStage, getAvailableStudents, assignStudent, removeStudent, setStudentStage } from '../api/client.js';
+import { getClass, createStage, updateStage, deleteStage, getAvailableStudents, assignStudent, removeStudent, setStudentStage, hasPermission } from '../api/client.js';
 
 function ClassDetail() {
   const { id } = useParams();
@@ -10,23 +10,25 @@ function ClassDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Stage management
-  const [showAddStage, setShowAddStage] = useState(false);
-  const [addStageName, setAddStageName] = useState('');
-  const [editStage, setEditStage] = useState(null);
-  const [editStageName, setEditStageName] = useState('');
-  const [deleteStageId, setDeleteStageId] = useState(null);
+  // Chapter management
+  const [showAddChapter, setShowAddChapter] = useState(false);
+  const [addChapterName, setAddChapterName] = useState('');
+  const [editChapter, setEditChapter] = useState(null);
+  const [editChapterName, setEditChapterName] = useState('');
+  const [deleteChapterId, setDeleteChapterId] = useState(null);
 
   // Student management
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [availableStudents, setAvailableStudents] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
 
-  // Change stage for a student
-  const [changeStageStudent, setChangeStageStudent] = useState(null);
-  const [changeStageId, setChangeStageId] = useState('');
+  // Change chapter for a student
+  const [changeChapterStudent, setChangeChapterStudent] = useState(null);
+  const [changeChapterId, setChangeChapterId] = useState('');
 
   useEffect(() => { load(); }, [id]);
+
+  const canManageClasses = hasPermission('can_manage_classes');
 
   async function load() {
     setLoading(true);
@@ -41,38 +43,38 @@ function ClassDetail() {
     }
   }
 
-  async function handleAddStage(e) {
+  async function handleAddChapter(e) {
     e.preventDefault();
     try {
-      const stage = await createStage(id, addStageName);
-      setCls(prev => ({ ...prev, stages: [...prev.stages, stage] }));
-      setShowAddStage(false);
-      setAddStageName('');
+      const chapter = await createStage(id, addChapterName);
+      setCls(prev => ({ ...prev, stages: [...prev.stages, chapter] }));
+      setShowAddChapter(false);
+      setAddChapterName('');
     } catch (err) {
       setError(err.message);
     }
   }
 
-  async function handleEditStage(e) {
+  async function handleEditChapter(e) {
     e.preventDefault();
     try {
-      const updated = await updateStage(editStage, editStageName);
-      setCls(prev => ({ ...prev, stages: prev.stages.map(s => s.id === editStage ? updated : s) }));
-      setEditStage(null);
+      const updated = await updateStage(editChapter, editChapterName);
+      setCls(prev => ({ ...prev, stages: prev.stages.map(s => s.id === editChapter ? updated : s) }));
+      setEditChapter(null);
     } catch (err) {
       setError(err.message);
     }
   }
 
-  async function handleDeleteStage(stageId) {
+  async function handleDeleteChapter(chapterId) {
     try {
-      await deleteStage(stageId);
+      await deleteStage(chapterId);
       setCls(prev => ({
         ...prev,
-        stages: prev.stages.filter(s => s.id !== stageId),
-        students: prev.students.map(s => s.stage_id === stageId ? { ...s, stage_id: null, stage_name: null } : s)
+        stages: prev.stages.filter(s => s.id !== chapterId),
+        students: prev.students.map(s => s.stage_id === chapterId ? { ...s, stage_id: null, stage_name: null } : s)
       }));
-      setDeleteStageId(null);
+      setDeleteChapterId(null);
     } catch (err) {
       setError(err.message);
     }
@@ -110,15 +112,15 @@ function ClassDetail() {
     }
   }
 
-  async function handleSetStage(studentId) {
+  async function handleSetChapter(studentId) {
     try {
-      await setStudentStage(id, studentId, changeStageId || null);
-      const stage = cls.stages.find(s => s.id === Number(changeStageId));
+      await setStudentStage(id, studentId, changeChapterId || null);
+      const chapter = cls.stages.find(s => s.id === Number(changeChapterId));
       setCls(prev => ({
         ...prev,
-        students: prev.students.map(s => s.id === studentId ? { ...s, stage_id: changeStageId || null, stage_name: stage?.name || null } : s)
+        students: prev.students.map(s => s.id === studentId ? { ...s, stage_id: changeChapterId || null, stage_name: chapter?.name || null } : s)
       }));
-      setChangeStageStudent(null);
+      setChangeChapterStudent(null);
     } catch (err) {
       setError(err.message);
     }
@@ -139,26 +141,30 @@ function ClassDetail() {
         {cls.description && <p className="profile-detail">{cls.description}</p>}
       </div>
 
-      {/* Stages Section */}
+      {/* Chapters Section */}
       <div className="card attendance-section">
         <div className="dashboard-header" style={{ marginBottom: 8 }}>
-          <h2 className="section-title" style={{ margin: 0 }}>Stages</h2>
-          <button className="btn-primary btn-sm" onClick={() => setShowAddStage(true)}>Add Stage</button>
+          <h2 className="section-title" style={{ margin: 0 }}>Chapters</h2>
+          {canManageClasses && <button className="btn-primary btn-sm" onClick={() => setShowAddChapter(true)}>Add Chapter</button>}
         </div>
         {cls.stages.length === 0 ? (
-          <p className="status-text">No stages defined yet.</p>
+          <p className="status-text">No chapters defined yet.</p>
         ) : (
           <div className="attendance-table">
             <div className="attendance-table-header" style={{ gridTemplateColumns: '1fr 80px' }}>
-              <span>Stage Name</span>
+              <span>Chapter Name</span>
               <span>Actions</span>
             </div>
-            {cls.stages.map(stage => (
-              <div key={stage.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 80px' }}>
-                <span>{stage.name}</span>
+            {cls.stages.map(chapter => (
+              <div key={chapter.id} className="attendance-table-row" style={{ gridTemplateColumns: '1fr 80px' }}>
+                <span>{chapter.name}</span>
                 <span className="attendance-row-actions">
-                  <button className="btn-secondary btn-xs" onClick={() => { setEditStage(stage.id); setEditStageName(stage.name); }}>Edit</button>
-                  <button className="btn-danger btn-xs" onClick={() => setDeleteStageId(stage.id)}>Del</button>
+                  {canManageClasses && (
+                    <>
+                      <button className="btn-secondary btn-xs" onClick={() => { setEditChapter(chapter.id); setEditChapterName(chapter.name); }}>Edit</button>
+                      <button className="btn-danger btn-xs" onClick={() => setDeleteChapterId(chapter.id)}>Del</button>
+                    </>
+                  )}
                 </span>
               </div>
             ))}
@@ -170,7 +176,7 @@ function ClassDetail() {
       <div className="card attendance-section">
         <div className="dashboard-header" style={{ marginBottom: 8 }}>
           <h2 className="section-title" style={{ margin: 0 }}>Students</h2>
-          <button className="btn-primary btn-sm" onClick={handleOpenAddStudent}>Add Student</button>
+          {canManageClasses && <button className="btn-primary btn-sm" onClick={handleOpenAddStudent}>Add Student</button>}
         </div>
         {cls.students.length === 0 ? (
           <p className="status-text">No students assigned to this class.</p>
@@ -178,7 +184,7 @@ function ClassDetail() {
           <div className="attendance-table">
             <div className="attendance-table-header" style={{ gridTemplateColumns: '1fr 1fr 120px' }}>
               <span>Name</span>
-              <span>Stage</span>
+              <span>Chapter</span>
               <span>Actions</span>
             </div>
             {cls.students.map(s => (
@@ -186,10 +192,14 @@ function ClassDetail() {
                 <span>{s.name}</span>
                 <span>{s.stage_name || '—'}</span>
                 <span className="attendance-row-actions">
-                  <button className="btn-secondary btn-xs" onClick={() => { setChangeStageStudent(s.id); setChangeStageId(s.stage_id || ''); }}>
-                    {cls.stages.length > 0 ? 'Stage' : '—'}
-                  </button>
-                  <button className="btn-danger btn-xs" onClick={() => handleRemoveStudent(s.id)}>Remove</button>
+                  {canManageClasses && (
+                    <>
+                      <button className="btn-secondary btn-xs" onClick={() => { setChangeChapterStudent(s.id); setChangeChapterId(s.stage_id || ''); }}>
+                        {cls.stages.length > 0 ? 'Chapter' : '—'}
+                      </button>
+                      <button className="btn-danger btn-xs" onClick={() => handleRemoveStudent(s.id)}>Remove</button>
+                    </>
+                  )}
                 </span>
               </div>
             ))}
@@ -197,45 +207,45 @@ function ClassDetail() {
         )}
       </div>
 
-      {/* Add Stage Modal */}
-      {showAddStage && (
-        <Modal title="Add Stage" onClose={() => setShowAddStage(false)}>
-          <form onSubmit={handleAddStage}>
+      {/* Add Chapter Modal */}
+      {showAddChapter && (
+        <Modal title="Add Chapter" onClose={() => setShowAddChapter(false)}>
+          <form onSubmit={handleAddChapter}>
             <div className="form-group">
-              <label htmlFor="add-stage">Stage Name</label>
-              <input id="add-stage" value={addStageName} onChange={e => setAddStageName(e.target.value)} required autoFocus />
+              <label htmlFor="add-chapter">Chapter Name</label>
+              <input id="add-chapter" value={addChapterName} onChange={e => setAddChapterName(e.target.value)} required autoFocus />
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowAddStage(false)}>Cancel</button>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddChapter(false)}>Cancel</button>
               <button type="submit" className="btn-primary">Add</button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* Edit Stage Modal */}
-      {editStage && (
-        <Modal title="Edit Stage" onClose={() => setEditStage(null)}>
-          <form onSubmit={handleEditStage}>
+      {/* Edit Chapter Modal */}
+      {editChapter && (
+        <Modal title="Edit Chapter" onClose={() => setEditChapter(null)}>
+          <form onSubmit={handleEditChapter}>
             <div className="form-group">
-              <label htmlFor="edit-stage">Stage Name</label>
-              <input id="edit-stage" value={editStageName} onChange={e => setEditStageName(e.target.value)} required autoFocus />
+              <label htmlFor="edit-chapter">Chapter Name</label>
+              <input id="edit-chapter" value={editChapterName} onChange={e => setEditChapterName(e.target.value)} required autoFocus />
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setEditStage(null)}>Cancel</button>
+              <button type="button" className="btn-secondary" onClick={() => setEditChapter(null)}>Cancel</button>
               <button type="submit" className="btn-primary">Save</button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* Delete Stage Modal */}
-      {deleteStageId && (
-        <Modal title="Delete Stage" onClose={() => setDeleteStageId(null)}>
-          <p>Are you sure? Students in this stage will be unassigned from the stage.</p>
+      {/* Delete Chapter Modal */}
+      {deleteChapterId && (
+        <Modal title="Delete Chapter" onClose={() => setDeleteChapterId(null)}>
+          <p>Are you sure? Students in this chapter will be unassigned from the chapter.</p>
           <div className="modal-actions">
-            <button className="btn-secondary" onClick={() => setDeleteStageId(null)}>Cancel</button>
-            <button className="btn-danger" onClick={() => handleDeleteStage(deleteStageId)}>Delete</button>
+            <button className="btn-secondary" onClick={() => setDeleteChapterId(null)}>Cancel</button>
+            <button className="btn-danger" onClick={() => handleDeleteChapter(deleteChapterId)}>Delete</button>
           </div>
         </Modal>
       )}
@@ -260,19 +270,19 @@ function ClassDetail() {
         </Modal>
       )}
 
-      {/* Change Stage Modal */}
-      {changeStageStudent && (
-        <Modal title="Change Student Stage" onClose={() => setChangeStageStudent(null)}>
+      {/* Change Chapter Modal */}
+      {changeChapterStudent && (
+        <Modal title="Change Student Chapter" onClose={() => setChangeChapterStudent(null)}>
           <div className="form-group">
-            <label htmlFor="change-stage">Stage</label>
-            <select id="change-stage" value={changeStageId} onChange={e => setChangeStageId(e.target.value)}>
-              <option value="">No stage</option>
+            <label htmlFor="change-chapter">Chapter</label>
+            <select id="change-chapter" value={changeChapterId} onChange={e => setChangeChapterId(e.target.value)}>
+              <option value="">No chapter</option>
               {cls.stages.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
             </select>
           </div>
           <div className="modal-actions">
-            <button className="btn-secondary" onClick={() => setChangeStageStudent(null)}>Cancel</button>
-            <button className="btn-primary" onClick={() => handleSetStage(changeStageStudent)}>Save</button>
+            <button className="btn-secondary" onClick={() => setChangeChapterStudent(null)}>Cancel</button>
+            <button className="btn-primary" onClick={() => handleSetChapter(changeChapterStudent)}>Save</button>
           </div>
         </Modal>
       )}

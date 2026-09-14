@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { requireAuth, requirePermission } = require('../auth');
 
 // Helper: get students with attendance status for a scheduled class
 function getStudentsWithAttendance(scId, scDate) {
@@ -16,7 +17,7 @@ function getStudentsWithAttendance(scId, scDate) {
 }
 
 // Create a scheduled class
-router.post('/', function(req, res) {
+router.post('/', requireAuth, requirePermission('can_manage_classes'), function(req, res) {
   const { class_id, date, time, end_time, notes, student_ids } = req.body;
   if (!class_id || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: 'class_id and valid date (YYYY-MM-DD) are required' });
@@ -53,7 +54,7 @@ router.post('/', function(req, res) {
 });
 
 // Mark a student in a scheduled class as present or absent
-router.post('/:id/mark', function(req, res) {
+router.post('/:id/mark', requireAuth, requirePermission('can_manage_students'), function(req, res) {
   var { student_id, status } = req.body;
   if (!student_id || !status || !['present', 'absent'].includes(status)) {
     return res.status(400).json({ error: 'student_id and status (present/absent) required' });
@@ -91,7 +92,7 @@ router.post('/:id/mark', function(req, res) {
 });
 
 // Get all scheduled classes (with attendance status + replacement entries)
-router.get('/', function(req, res) {
+router.get('/', requireAuth, requirePermission('can_manage_students'), function(req, res) {
   var schedules = db.prepare(
     'SELECT sc.*, c.name as class_name FROM scheduled_class sc JOIN class c ON c.id = sc.class_id ORDER BY sc.date DESC, sc.time DESC'
   ).all();
@@ -130,7 +131,7 @@ router.get('/', function(req, res) {
 });
 
 // Get scheduled classes for a date range (includes attendance status + replacement records)
-router.get('/range', function(req, res) {
+router.get('/range', requireAuth, requirePermission('can_manage_students'), function(req, res) {
   var { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to dates required (YYYY-MM-DD)' });
 
@@ -180,7 +181,7 @@ router.get('/range', function(req, res) {
 });
 
 // Mark a replacement class student as present or absent
-router.post("/:id/mark-replacement", function(req, res) {
+router.post("/:id/mark-replacement", requireAuth, requirePermission('can_manage_students'), function(req, res) {
   var { student_id, status, source_absent_id } = req.body;
   if (!student_id || !status || !["present", "absent"].includes(status)) {
     return res.status(400).json({ error: "student_id and status (present/absent) required" });
@@ -195,7 +196,7 @@ router.post("/:id/mark-replacement", function(req, res) {
   var addCredit = db.prepare("UPDATE student SET credits = credits + 1 WHERE id = ?");
   var removeCredit = db.prepare("UPDATE student SET credits = MAX(0, credits - 1) WHERE id = ?");
   var upsert = db.prepare(
-    "INSERT INTO attendance_record (student_id, date, status, time, end_time, replacement_for_id) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, time = excluded.time, end_time = excluded.end_time, replacement_for_id = COALESCE(excluded.replacement_for_id, replacement_for_id)"
+    "INSERT INTO attendance_record (student_id, date, status, time, end_time, scheduled_class_id, replacement_for_id) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, time = excluded.time, end_time = excluded.end_time, scheduled_class_id = COALESCE(excluded.scheduled_class_id, scheduled_class_id), replacement_for_id = COALESCE(excluded.replacement_for_id, replacement_for_id)"
   );
 
   var existing = db.prepare("SELECT id, status FROM attendance_record WHERE student_id = ? AND date = ?").get(student_id, absentRec.replacement_date);
@@ -207,7 +208,7 @@ router.post("/:id/mark-replacement", function(req, res) {
     } else {
       if (status === "absent") addCredit.run(student_id);
     }
-    upsert.run(student_id, absentRec.replacement_date, status, absentRec.replacement_time || null, absentRec.replacement_end_time || null, source_absent_id);
+    upsert.run(student_id, absentRec.replacement_date, status, absentRec.replacement_time || null, absentRec.replacement_end_time || null, absentRec.scheduled_class_id || null, source_absent_id);
   });
   transaction();
 
@@ -217,7 +218,7 @@ router.post("/:id/mark-replacement", function(req, res) {
 });
 
 // Delete a scheduled class
-router.delete('/:id', function(req, res) {
+router.delete('/:id', requireAuth, requirePermission('can_manage_classes'), function(req, res) {
   var existing = db.prepare('SELECT id FROM scheduled_class WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Scheduled class not found' });
   db.prepare('DELETE FROM scheduled_class WHERE id = ?').run(req.params.id);

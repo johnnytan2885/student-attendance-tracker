@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
-import AttendanceCalendar from '../components/AttendanceCalendar.jsx';
+import Avatar from '../components/Avatar.jsx';
 import { getStudent, getStudentAttendance, updateStudent, archiveStudent, deleteStudent, setReplacement, editAttendance, deleteAttendance, editReplacementDate } from '../api/client.js';
-import { formatTime24to12, formatDate, formatDateTimeRange } from '../utils.js';
+import { formatTime24to12, formatDate, formatDateTimeRange, randomSeed } from '../utils.js';
 
 function StudentProfile() {
   const { id } = useParams();
@@ -17,6 +17,7 @@ function StudentProfile() {
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editSeed, setEditSeed] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [showDelete, setShowDelete] = useState(false);
@@ -48,6 +49,7 @@ function StudentProfile() {
       setEditName(studentData.name);
       setEditEmail(studentData.email || '');
       setEditNotes(studentData.notes || '');
+      setEditSeed(studentData.avatar_seed || '');
     } catch (err) {
       setError(err.message);
       if (err.status === 404) setError('Student not found.');
@@ -61,7 +63,7 @@ function StudentProfile() {
     setSaving(true);
     setError('');
     try {
-      const updated = await updateStudent(id, { name: editName, email: editEmail || null, notes: editNotes || null });
+      const updated = await updateStudent(id, { name: editName, email: editEmail || null, notes: editNotes || null, avatar_seed: editSeed });
       setStudent(updated);
       setShowEdit(false);
     } catch (err) {
@@ -157,7 +159,10 @@ function StudentProfile() {
         <div className="profile-left">
           <div className="card profile-header">
             <div className="profile-header-row">
-              <h1 className="profile-name">{student.name}</h1>
+              <div className="profile-id">
+                <Avatar seed={student.avatar_seed} size={64} />
+                <h1 className="profile-name">{student.name}</h1>
+              </div>
               <span className={`credit-badge ${student.credits > 0 ? 'has-credits' : ''}`}>
                 {student.credits} credit{student.credits !== 1 ? 's' : ''}
               </span>
@@ -198,28 +203,30 @@ function StudentProfile() {
             </div>
           )}
 
-          <div className="card attendance-section">
-            <h2 className="section-title">Attendance History</h2>
-            {attendance.length === 0 ? (
-              <p className="status-text">No attendance records yet.</p>
-            ) : (
-              <div className="attendance-table">
-                <div className="attendance-table-header" style={{ gridTemplateColumns: '90px 90px 1fr 1fr 100px' }}>
-                  <span>Date</span>
-                  <span>S / E</span>
-                  <span>Status</span>
-                  <span>Replacement</span>
-                  <span>Actions</span>
-                </div>
-                {attendance.map(record => (
-                  <div
-                    key={record.id}
-                    style={{ gridTemplateColumns: '90px 90px 1fr 1fr 100px' }} className={`attendance-table-row ${record.status === 'absent' ? 'row-absent' : 'row-present'}`}
-                  >
-                    <span>{formatDate(record.date)}</span>
-                    <span>{record.time ? formatTime24to12(record.time) + (record.end_time ? '/' + formatTime24to12(record.end_time) : '') : '—'}</span>
-                    <span>{record.status === 'present' ? 'Present' : 'Absent'}</span>
-                    <span>{record.replacement_date ? formatDate(record.replacement_date) : '—'}</span>
+            <div className="card attendance-section">
+              <h2 className="section-title">Attendance History</h2>
+              {attendance.length === 0 ? (
+                <p className="status-text">No attendance records yet.</p>
+              ) : (
+                <div className="attendance-table">
+                  <div className="attendance-table-header" style={{ gridTemplateColumns: '100px 90px 1fr 1fr 110px 100px' }}>
+                    <span>Date</span>
+                    <span>S / E</span>
+                    <span>Status</span>
+                    <span>Class</span>
+                    <span>Replacement</span>
+                    <span>Actions</span>
+                  </div>
+                  {attendance.map(record => (
+                    <div
+                      key={record.id}
+                      style={{ gridTemplateColumns: '100px 90px 1fr 1fr 110px 100px' }} className={`attendance-table-row ${record.status === 'absent' ? 'row-absent' : 'row-present'}`}
+                    >
+                      <span>{formatDate(record.date)}</span>
+                      <span>{record.time ? formatTime24to12(record.time) + (record.end_time ? '/' + formatTime24to12(record.end_time) : '') : '—'}</span>
+                      <span>{record.status === 'present' ? 'Present' : 'Absent'}</span>
+                      <span>{record.class_name || '—'}</span>
+                      <span>{record.replacement_date ? formatDate(record.replacement_date) : '—'}</span>
                     <span className="attendance-row-actions">
                       <button className="btn-secondary btn-xs" onClick={() => { setShowEditAttendance(record); setEditAttendanceStatus(record.status); }}>Edit</button>
                       <button className="btn-danger btn-xs" onClick={() => setShowDeleteAttendance(record)}>Delete</button>
@@ -230,15 +237,17 @@ function StudentProfile() {
             )}
           </div>
         </div>
-
-        <div className="profile-right">
-          <AttendanceCalendar attendanceRecords={attendance} />
-        </div>
       </div>
 
       {showEdit && (
         <Modal title="Edit Student" onClose={() => setShowEdit(false)}>
           <form onSubmit={handleEdit}>
+            <div className="avatar-edit-row">
+              <Avatar seed={editSeed} size={72} />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setEditSeed(randomSeed())}>
+                Shuffle look
+              </button>
+            </div>
             <div className="form-group">
               <label htmlFor="edit-name">Name</label>
               <input id="edit-name" value={editName} onChange={e => setEditName(e.target.value)} required />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getStudents, getClasses, markAttendance } from '../api/client.js';
+import { getStudents, getClasses, markAttendance, createSchedule, hasPermission } from '../api/client.js';
 
 function AttendanceForm() {
   var [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -16,6 +16,8 @@ function AttendanceForm() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => { loadClasses(); }, []);
+
+  const canManageClasses = hasPermission('can_manage_classes');
 
   useEffect(() => {
     if (selectedClassId) loadStudents();
@@ -66,7 +68,20 @@ function AttendanceForm() {
     setError('');
     setSuccess('');
     try {
-      const payload = selectedIds.map(function(id) { return { student_id: id, status: status, time: time, end_time: endTime || null }; });
+      let scheduledClassId = null;
+      if (selectedClassId && canManageClasses) {
+        const schedule = await createSchedule({
+          class_id: Number(selectedClassId),
+          date,
+          time,
+          end_time: endTime || null,
+          student_ids: selectedIds.map(Number)
+        });
+        scheduledClassId = schedule.id;
+      }
+      const payload = selectedIds.map(function(id) {
+        return { student_id: id, status: status, time: time, end_time: endTime || null, scheduled_class_id: scheduledClassId };
+      });
       const result = await markAttendance(date, payload);
       setSuccess(`Attendance saved for ${selectedIds.length} student(s) on ${date}`);
     } catch (err) {

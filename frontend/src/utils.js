@@ -20,6 +20,10 @@ export function formatDateTimeRange(startTime, endTime) {
   return formatTime24to12(startTime) + (endTime ? ' - ' + formatTime24to12(endTime) : '');
 }
 
+export function randomSeed() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 export function calcDuration(startTime, endTime) {
   if (!startTime || !endTime) return '';
   var s = startTime.split(':').map(Number);

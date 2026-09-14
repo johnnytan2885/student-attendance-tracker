@@ -1,4 +1,7 @@
 const TOKEN_KEY = 'sat_token';
+const STUDENT_TOKEN_KEY = 'sat_student_token';
+const ADMIN_ROLE_KEY = 'sat_admin_role';
+const ADMIN_PERMS_KEY = 'sat_admin_perms';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -10,17 +13,72 @@ export function setToken(token) {
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(ADMIN_ROLE_KEY);
+  localStorage.removeItem(ADMIN_PERMS_KEY);
+}
+
+export function getStudentToken() {
+  return localStorage.getItem(STUDENT_TOKEN_KEY);
+}
+
+export function setStudentToken(token) {
+  localStorage.setItem(STUDENT_TOKEN_KEY, token);
+}
+
+export function clearStudentToken() {
+  localStorage.removeItem(STUDENT_TOKEN_KEY);
+}
+
+export function getAdminRole() {
+  return localStorage.getItem(ADMIN_ROLE_KEY);
+}
+
+export function setAdminRole(role) {
+  if (role) {
+    localStorage.setItem(ADMIN_ROLE_KEY, role);
+  } else {
+    localStorage.removeItem(ADMIN_ROLE_KEY);
+  }
+}
+
+export function getAdminPermissions() {
+  const perms = localStorage.getItem(ADMIN_PERMS_KEY);
+  if (!perms) return {};
+  try {
+    return JSON.parse(perms);
+  } catch (e) {
+    return {};
+  }
+}
+
+export function setAdminPermissions(permissions) {
+  if (permissions && Object.keys(permissions).length > 0) {
+    localStorage.setItem(ADMIN_PERMS_KEY, JSON.stringify(permissions));
+  } else {
+    localStorage.removeItem(ADMIN_PERMS_KEY);
+  }
+}
+
+export function hasPermission(permission) {
+  if (getAdminRole() === 'admin') return true;
+  const perms = getAdminPermissions();
+  return !!perms[permission];
 }
 
 export async function apiFetch(url, options = {}) {
   const token = getToken();
+  const studentToken = getStudentToken();
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+  if (studentToken) {
+    headers['Authorization'] = `Bearer ${studentToken}`;
+  }
   const res = await fetch(url, { ...options, headers });
-  if (res.status === 401) {
+  if (res.status === 401 && !options.skipAuthRedirect) {
     clearToken();
+    clearStudentToken();
     window.location.href = '/login';
     throw new Error('Session expired');
   }
@@ -38,7 +96,12 @@ export async function login(username, password) {
   const data = await apiFetch('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
+    skipAuthRedirect: true,
   });
+  if (data.role) {
+    setAdminRole(data.role);
+    setAdminPermissions(data.permissions || {});
+  }
   return data;
 }
 
@@ -62,6 +125,119 @@ export async function resetPassword(currentPassword, newPassword) {
 
 export async function getMe() {
   return apiFetch('/api/auth/me');
+}
+
+// --- Student Auth ---
+
+export async function studentSignup(data) {
+  return apiFetch('/api/auth/student/signup', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function studentLogin(username, password) {
+  const data = await apiFetch('/api/auth/student/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+    skipAuthRedirect: true,
+  });
+  return data;
+}
+
+export async function studentLogout() {
+  await apiFetch('/api/auth/student/logout', { method: 'POST' });
+  clearStudentToken();
+}
+
+export async function getStudentMe() {
+  return apiFetch('/api/auth/student/me');
+}
+
+export async function getStudentProfile() {
+  return apiFetch('/api/auth/student/profile');
+}
+
+export async function getMyStudentAttendance() {
+  return apiFetch('/api/auth/student/attendance');
+}
+
+export async function studentChangePassword(currentPassword, newPassword) {
+  return apiFetch('/api/auth/student/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+// --- Exams ---
+
+export async function getExams() {
+  return apiFetch('/api/exams');
+}
+
+export async function createExam(data) {
+  return apiFetch('/api/exams', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getExam(id) {
+  return apiFetch(`/api/exams/${id}`);
+}
+
+export async function updateExam(id, data) {
+  return apiFetch(`/api/exams/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteExam(id) {
+  return apiFetch(`/api/exams/${id}`, { method: 'DELETE' });
+}
+
+export async function addQuestion(examId, data) {
+  return apiFetch(`/api/exams/${examId}/questions`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateQuestion(questionId, data) {
+  return apiFetch(`/api/exams/questions/${questionId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteQuestion(questionId) {
+  return apiFetch(`/api/exams/questions/${questionId}`, { method: 'DELETE' });
+}
+
+export async function allocateExam(examId, studentIds) {
+  return apiFetch(`/api/exams/${examId}/allocate`, { method: 'POST', body: JSON.stringify({ student_ids: studentIds }) });
+}
+
+export async function getExamAllocated(examId) {
+  return apiFetch(`/api/exams/${examId}/allocated`);
+}
+
+export async function getStudentAvailableExams() {
+  return apiFetch('/api/exams/student/available');
+}
+
+export async function getStudentExam(id) {
+  return apiFetch(`/api/exams/student/${id}`);
+}
+
+export async function getStudentExamQuestions(id) {
+  return apiFetch(`/api/exams/student/${id}/questions`);
+}
+
+export async function startStudentExam(id) {
+  return apiFetch(`/api/exams/student/${id}/start`, { method: 'POST' });
+}
+
+export async function submitStudentAnswer(examId, data) {
+  return apiFetch(`/api/exams/student/${examId}/answer`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function submitStudentExam(id) {
+  return apiFetch(`/api/exams/student/${id}/submit`, { method: 'POST' });
+}
+
+export async function getStudentExamResult(id) {
+  return apiFetch(`/api/exams/student/${id}/result`);
+}
+
+export async function getStudentExamHistory() {
+  return apiFetch('/api/exams/student/history');
 }
 
 export async function getStudents(showAll = false, classId = null) {
@@ -167,6 +343,14 @@ export async function deleteClass(id) {
   return apiFetch(`/api/classes/${id}`, { method: 'DELETE' });
 }
 
+export async function getStudentClasses() {
+  return apiFetch('/api/student/classes');
+}
+
+export async function getStudentClass(id) {
+  return apiFetch(`/api/student/classes/${id}`);
+}
+
 export async function createStage(classId, name) {
   return apiFetch(`/api/classes/${classId}/stages`, { method: 'POST', body: JSON.stringify({ name }) });
 }
@@ -224,5 +408,36 @@ export async function markReplacementAttendance(sourceAbsentId, studentId, statu
   return apiFetch('/api/schedules/' + sourceAbsentId + '/mark-replacement', {
     method: 'POST',
     body: JSON.stringify({ student_id: studentId, status: status, source_absent_id: sourceAbsentId }),
+  });
+}
+
+export async function resetStudentExam(examId, studentId) {
+  return apiFetch('/api/exams/' + examId + '/reset', {
+    method: 'POST',
+    body: JSON.stringify({ student_id: studentId }),
+  });
+}
+
+export async function getSubAdmins() {
+  return apiFetch('/api/auth/sub-admins');
+}
+
+export async function createSubAdmin(data) {
+  return apiFetch('/api/auth/sub-admins', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSubAdmin(id, data) {
+  return apiFetch('/api/auth/sub-admins/' + id, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSubAdmin(id) {
+  return apiFetch('/api/auth/sub-admins/' + id, {
+    method: 'DELETE',
   });
 }

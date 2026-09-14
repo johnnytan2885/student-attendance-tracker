@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal.jsx';
+import Avatar from './Avatar.jsx';
+import { randomSeed } from '../utils.js';
 import { updateStudent, archiveStudent, deleteStudent } from '../api/client.js';
+import { hasPermission } from '../api/client.js';
 
 function StudentCard({ student, onUpdated, onDeleted }) {
   const [showEdit, setShowEdit] = useState(false);
@@ -9,6 +12,7 @@ function StudentCard({ student, onUpdated, onDeleted }) {
   const [editName, setEditName] = useState(student.name);
   const [editEmail, setEditEmail] = useState(student.email || '');
   const [editNotes, setEditNotes] = useState(student.notes || '');
+  const [editSeed, setEditSeed] = useState(student.avatar_seed);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -18,7 +22,7 @@ function StudentCard({ student, onUpdated, onDeleted }) {
     setSaving(true);
     setError('');
     try {
-      const updated = await updateStudent(student.id, { name: editName, email: editEmail || null, notes: editNotes || null });
+      const updated = await updateStudent(student.id, { name: editName, email: editEmail || null, notes: editNotes || null, avatar_seed: editSeed });
       onUpdated(updated);
       setShowEdit(false);
     } catch (err) {
@@ -51,24 +55,39 @@ function StudentCard({ student, onUpdated, onDeleted }) {
     <>
       <div className="card student-card">
         <div className="student-card-header" onClick={() => navigate(`/students/${student.id}`)}>
-          <h3 className="student-card-name">{student.name}</h3>
+          <div className="student-card-id">
+            <Avatar seed={student.avatar_seed} size={48} />
+            <h3 className="student-card-name">{student.name}</h3>
+          </div>
           <span className={`credit-badge ${student.credits > 0 ? 'has-credits' : ''}`}>
             {student.credits} credit{student.credits !== 1 ? 's' : ''}
           </span>
         </div>
         {!student.active && <span className="inactive-label">Archived</span>}
         <div className="student-card-actions">
-          <button className="btn-secondary btn-sm" onClick={() => setShowEdit(true)}>Edit</button>
-          <button className="btn-secondary btn-sm" onClick={handleArchive}>
-            {student.active ? 'Archive' : 'Unarchive'}
-          </button>
-          <button className="btn-danger btn-sm" onClick={() => setShowDelete(true)}>Delete</button>
+          {hasPermission('can_manage_students') && (
+            <>
+              <button className="btn-secondary btn-sm" onClick={() => setShowEdit(true)}>Edit</button>
+              <button className="btn-secondary btn-sm" onClick={handleArchive}>
+                {student.active ? 'Archive' : 'Unarchive'}
+              </button>
+            </>
+          )}
+          {hasPermission('can_manage_students') && (
+            <button className="btn-danger btn-sm" onClick={() => setShowDelete(true)}>Delete</button>
+          )}
         </div>
       </div>
 
       {showEdit && (
         <Modal title="Edit Student" onClose={() => setShowEdit(false)}>
           <form onSubmit={handleEdit}>
+            <div className="avatar-edit-row">
+              <Avatar seed={editSeed} size={72} />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setEditSeed(randomSeed())}>
+                Shuffle look
+              </button>
+            </div>
             <div className="form-group">
               <label htmlFor="edit-name">Name</label>
               <input id="edit-name" value={editName} onChange={e => setEditName(e.target.value)} required />

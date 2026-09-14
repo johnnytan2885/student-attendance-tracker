@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
-import { getClasses, createClass, deleteClass } from '../api/client.js';
+import { getClasses, createClass, deleteClass, hasPermission } from '../api/client.js';
 
 function ClassList() {
   const [classes, setClasses] = useState([]);
@@ -58,20 +58,22 @@ function ClassList() {
 
   return (
     <div>
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Classes</h1>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}>Add Class</button>
-      </div>
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">Classes</h1>
+          {hasPermission('can_manage_classes') && <button className="btn-primary" onClick={() => setShowAdd(true)}>Add Class</button>}
+        </div>
 
       {loading && <p className="status-text">Loading classes...</p>}
       {error && <p className="form-error">{error}</p>}
 
-      {!loading && classes.length === 0 && (
-        <div className="empty-state">
-          <p className="empty-state-message">No classes yet.</p>
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>Create your first class</button>
-        </div>
-      )}
+        {!loading && classes.length === 0 && (
+          <div className="empty-state">
+            <p className="empty-state-message">No classes yet.</p>
+            {hasPermission('can_manage_classes') && (
+              <button className="btn-primary" onClick={() => setShowAdd(true)}>Create your first class</button>
+            )}
+          </div>
+        )}
 
       <div className="student-grid">
         {classes.map(cls => (
@@ -81,7 +83,9 @@ function ClassList() {
             </div>
             {cls.description && <p style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>{cls.description}</p>}
             <div className="student-card-actions">
-              <button className="btn-danger btn-sm" onClick={e => { e.stopPropagation(); setShowDelete(cls.id); }}>Delete</button>
+              {hasPermission('can_manage_classes') && (
+                <button className="btn-danger btn-sm" onClick={e => { e.stopPropagation(); setShowDelete(cls.id); }}>Delete</button>
+              )}
             </div>
           </div>
         ))}

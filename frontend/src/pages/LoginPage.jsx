@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { login, setToken } from '../api/client.js';
+import { useNavigate, Link } from 'react-router-dom';
+import { login, studentLogin, setToken, setStudentToken } from '../api/client.js';
 
 function LoginPage() {
   const [username, setUsername] = useState('');
@@ -14,12 +14,20 @@ function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const data = await login(username, password);
-      setToken(data.token);
-      if (data.mustChangePassword) {
-        navigate('/change-password');
-      } else {
-        navigate('/dashboard');
+      try {
+        const data = await login(username, password);
+        setToken(data.token);
+        if (data.mustChangePassword) {
+          navigate('/change-password');
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (adminErr) {
+        const data = await studentLogin(username, password);
+        if (data.token) {
+          setStudentToken(data.token);
+        }
+        navigate('/student/dashboard');
       }
     } catch (err) {
       setError(err.message);
@@ -30,9 +38,10 @@ function LoginPage() {
 
   return (
     <div className="page-center">
-      <div className="card login-card">
-        <h1 className="login-title">Student Attendance Tracker</h1>
-        <p className="login-subtitle">Sign in to your account</p>
+      <div className="card" style={{ maxWidth: 400, width: '100%' }}>
+          <h1 className="login-title" style={{ textAlign: 'center' }}>TutorTrack</h1>
+        <p className="login-subtitle" style={{ textAlign: 'center' }}>Sign in to your account</p>
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="username">Username</label>
@@ -56,10 +65,14 @@ function LoginPage() {
             />
           </div>
           {error && <p className="form-error">{error}</p>}
-          <button type="submit" className="btn-primary login-btn" disabled={loading}>
+          <button type="submit" className="btn-primary login-btn" disabled={loading} style={{ width: '100%' }}>
             {loading ? 'Signing in...' : 'Log In'}
           </button>
         </form>
+
+        <p style={{ textAlign: 'center', marginTop: 12, fontSize: 14 }}>
+          New student? <Link to="/signup">Sign up here</Link>
+        </p>
       </div>
     </div>
   );

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
-import { getClasses, getStudents, createSchedule, getSchedules, deleteSchedule, markScheduleAttendance, markReplacementAttendance } from '../api/client.js';
+import { getClasses, getStudents, createSchedule, getSchedules, deleteSchedule, markScheduleAttendance, markReplacementAttendance, hasPermission } from '../api/client.js';
 import { formatTime24to12, formatDate } from '../utils.js';
 
 function SchedulePage() {
   var navigate = useNavigate();
+  var canManageClasses = hasPermission('can_manage_classes');
   var [classes, setClasses] = useState([]);
   var [selectedClassId, setSelectedClassId] = useState('');
   var [students, setStudents] = useState([]);
@@ -132,6 +133,7 @@ function SchedulePage() {
 
       {error && <p className="form-error">{error}</p>}
 
+      {canManageClasses && (
       <div className="card" style={{ marginBottom: 24, padding: 20 }}>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -186,6 +188,7 @@ function SchedulePage() {
           </button>
         </form>
       </div>
+      )}
 
       <h2 className="section-title">Upcoming & Past Classes</h2>
       {schedules.length === 0 ? (
@@ -236,7 +239,7 @@ function SchedulePage() {
                               <button className="btn-primary btn-xs" onClick={function() { handleMark(sc, st.id, 'present'); }}>Present</button>
                             </div>
                           )}
-                          {isFirst && sc.type !== 'replacement' && (
+                          {isFirst && sc.type !== 'replacement' && canManageClasses && (
                             <button className="btn-danger btn-xs" style={{ marginLeft: 4 }} onClick={function(e) { e.stopPropagation(); setShowDelete(sc.id); }}>X</button>
                           )}
                         </span>
@@ -253,7 +256,7 @@ function SchedulePage() {
                       <span>{sc.class_name}</span>
                       <span className="status-text">No students</span>
                       <span className="attendance-row-actions">
-                        {sc.type !== 'replacement' && <button className="btn-danger btn-xs" onClick={function() { setShowDelete(sc.id); }}>X</button>}
+                        {sc.type !== 'replacement' && canManageClasses && <button className="btn-danger btn-xs" onClick={function() { setShowDelete(sc.id); }}>X</button>}
                       </span>
                     </div>
                   );

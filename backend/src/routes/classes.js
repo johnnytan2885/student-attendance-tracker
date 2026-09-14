@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { requireAuth, requirePermission } = require('../auth');
 
 // --- Class CRUD ---
 
-router.get('/', (req, res) => {
+router.get('/', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const showAll = req.query.showAll === 'true';
   const classes = showAll
     ? db.prepare('SELECT * FROM class ORDER BY name').all()
@@ -12,7 +13,7 @@ router.get('/', (req, res) => {
   res.json(classes);
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const cls = db.prepare('SELECT * FROM class WHERE id = ?').get(req.params.id);
   if (!cls) return res.status(404).json({ error: 'Class not found' });
 
@@ -34,7 +35,7 @@ router.get('/:id', (req, res) => {
   res.json({ ...cls, stages, students: studentsWithStage });
 });
 
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const { name, description } = req.body;
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return res.status(400).json({ error: 'Name is required' });
@@ -44,7 +45,7 @@ router.post('/', (req, res) => {
   res.status(201).json(cls);
 });
 
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const existing = db.prepare('SELECT id FROM class WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Class not found' });
 
@@ -60,7 +61,7 @@ router.put('/:id', (req, res) => {
   res.json(cls);
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const existing = db.prepare('SELECT id FROM class WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Class not found' });
   db.prepare('DELETE FROM class WHERE id = ?').run(req.params.id);
@@ -69,7 +70,7 @@ router.delete('/:id', (req, res) => {
 
 // --- Stages ---
 
-router.post('/:id/stages', (req, res) => {
+router.post('/:id/stages', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const { name } = req.body;
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return res.status(400).json({ error: 'Stage name is required' });
@@ -85,7 +86,7 @@ router.post('/:id/stages', (req, res) => {
   res.status(201).json(stage);
 });
 
-router.put('/stages/:stageId', (req, res) => {
+router.put('/stages/:stageId', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const existing = db.prepare('SELECT * FROM class_stage WHERE id = ?').get(req.params.stageId);
   if (!existing) return res.status(404).json({ error: 'Stage not found' });
 
@@ -99,7 +100,7 @@ router.put('/stages/:stageId', (req, res) => {
   res.json(stage);
 });
 
-router.delete('/stages/:stageId', (req, res) => {
+router.delete('/stages/:stageId', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const existing = db.prepare('SELECT id FROM class_stage WHERE id = ?').get(req.params.stageId);
   if (!existing) return res.status(404).json({ error: 'Stage not found' });
   // Remove stage reference from students, then delete the stage
@@ -110,7 +111,7 @@ router.delete('/stages/:stageId', (req, res) => {
 
 // --- Student Assignment ---
 
-router.get('/:id/available-students', (req, res) => {
+router.get('/:id/available-students', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const cls = db.prepare('SELECT id FROM class WHERE id = ?').get(req.params.id);
   if (!cls) return res.status(404).json({ error: 'Class not found' });
 
@@ -122,7 +123,7 @@ router.get('/:id/available-students', (req, res) => {
   res.json(students);
 });
 
-router.post('/:id/students', (req, res) => {
+router.post('/:id/students', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const { student_id } = req.body;
   if (!student_id) return res.status(400).json({ error: 'student_id is required' });
 
@@ -143,12 +144,12 @@ router.post('/:id/students', (req, res) => {
   }
 });
 
-router.delete('/:id/students/:studentId', (req, res) => {
+router.delete('/:id/students/:studentId', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   db.prepare('DELETE FROM class_student WHERE class_id = ? AND student_id = ?').run(req.params.id, req.params.studentId);
   res.status(204).send();
 });
 
-router.patch('/:id/students/:studentId/stage', (req, res) => {
+router.patch('/:id/students/:studentId/stage', requireAuth, requirePermission('can_manage_classes'), (req, res) => {
   const { stage_id } = req.body;
   const cs = db.prepare('SELECT id FROM class_student WHERE class_id = ? AND student_id = ?').get(req.params.id, req.params.studentId);
   if (!cs) return res.status(404).json({ error: 'Student not in this class' });

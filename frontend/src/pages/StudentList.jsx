@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal.jsx';
+import Avatar from '../components/Avatar.jsx';
 import StudentCard from '../components/StudentCard.jsx';
 import EmptyState from '../components/EmptyState.jsx';
-import { getStudents, createStudent } from '../api/client.js';
+import { getStudents, createStudent, hasPermission } from '../api/client.js';
+import { randomSeed } from '../utils.js';
 
 function StudentList() {
   const [students, setStudents] = useState([]);
@@ -14,6 +16,7 @@ function StudentList() {
   const [addName, setAddName] = useState('');
   const [addEmail, setAddEmail] = useState('');
   const [addNotes, setAddNotes] = useState('');
+  const [addSeed, setAddSeed] = useState(() => randomSeed());
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
@@ -45,12 +48,13 @@ function StudentList() {
     setSaving(true);
     setError('');
     try {
-      const student = await createStudent({ name: addName, email: addEmail || null, notes: addNotes || null });
+      const student = await createStudent({ name: addName, email: addEmail || null, notes: addNotes || null, avatar_seed: addSeed });
       setStudents(prev => [...prev, student]);
       setShowAdd(false);
       setAddName('');
       setAddEmail('');
       setAddNotes('');
+      setAddSeed(randomSeed());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,20 +71,22 @@ function StudentList() {
             <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
             Show archived
           </label>
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>Add Student</button>
+          {hasPermission('can_manage_students') && (
+            <button className="btn-primary" onClick={() => setShowAdd(true)}>Add Student</button>
+          )}
         </div>
       </div>
 
       {loading && <p className="status-text">Loading students...</p>}
       {error && <p className="form-error">{error}</p>}
 
-      {!loading && !error && students.length === 0 && (
-        <EmptyState
-          message={showArchived ? 'No students found.' : 'No students yet.'}
-          actionLabel={showArchived ? undefined : 'Add your first student'}
-          onAction={showArchived ? undefined : () => setShowAdd(true)}
-        />
-      )}
+        {!loading && !error && students.length === 0 && (
+          <EmptyState
+            message={showArchived ? 'No students found.' : 'No students yet.'}
+            actionLabel={showArchived ? undefined : (hasPermission('can_manage_students') ? 'Add your first student' : undefined)}
+            onAction={showArchived ? undefined : () => setShowAdd(true)}
+          />
+        )}
 
       <div className="student-grid">
         {students.map(student => (
@@ -91,6 +97,12 @@ function StudentList() {
       {showAdd && (
         <Modal title="Add Student" onClose={() => setShowAdd(false)}>
           <form onSubmit={handleAdd}>
+            <div className="avatar-edit-row">
+              <Avatar seed={addSeed} size={72} />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setAddSeed(randomSeed())}>
+                Shuffle look
+              </button>
+            </div>
             <div className="form-group">
               <label htmlFor="add-name">Name *</label>
               <input id="add-name" value={addName} onChange={e => setAddName(e.target.value)} required autoFocus />

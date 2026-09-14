@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { requireAuth, requirePermission } = require('../auth');
 
 // Check if a record exists for a student on a given date
 const checkExisting = db.prepare(
@@ -8,7 +9,7 @@ const checkExisting = db.prepare(
 );
 
 // Mark attendance (upsert: replace existing record for same student+date)
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const { date, records } = req.body;
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -74,18 +75,24 @@ router.post('/', (req, res) => {
 });
 
 // Get attendance history for a student
-router.get('/student/:studentId', (req, res) => {
+router.get('/student/:studentId', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const student = db.prepare('SELECT id FROM student WHERE id = ?').get(req.params.studentId);
   if (!student) return res.status(404).json({ error: 'Student not found' });
 
   const records = db.prepare(
-    'SELECT * FROM attendance_record WHERE student_id = ? ORDER BY date DESC, created_at DESC'
+    `SELECT ar.id, ar.student_id, ar.date, ar.status, ar.replacement_date, ar.time, ar.end_time,
+            ar.scheduled_class_id, c.name as class_name, sc.time as scheduled_time, sc.end_time as scheduled_end_time
+     FROM attendance_record ar
+     LEFT JOIN scheduled_class sc ON sc.id = ar.scheduled_class_id
+     LEFT JOIN class c ON c.id = sc.class_id
+     WHERE ar.student_id = ?
+     ORDER BY ar.date DESC, ar.created_at DESC`
   ).all(req.params.studentId);
   res.json(records);
 });
 
 // Get attendance records for a specific date
-router.get("/date/:dateStr", function(req, res) {
+router.get("/date/:dateStr", requireAuth, requirePermission('can_manage_students'), function(req, res) {
   var records = db.prepare(
     "SELECT ar.*, s.name as student_name FROM attendance_record ar JOIN student s ON s.id = ar.student_id WHERE ar.date = ? ORDER BY ar.time"
   ).all(req.params.dateStr);
@@ -93,7 +100,7 @@ router.get("/date/:dateStr", function(req, res) {
 });
 
 // Get today's attendance records with student name and time for timeline
-router.get('/today', (req, res) => {
+router.get('/today', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   var today = new Date().toISOString().slice(0, 10);
   var records = db.prepare(
     "SELECT ar.*, s.name as student_name FROM attendance_record ar JOIN student s ON s.id = ar.student_id WHERE ar.date = ? ORDER BY ar.time"
@@ -102,7 +109,7 @@ router.get('/today', (req, res) => {
 });
 
 // Get dates that have attendance records (for calendar highlighting)
-router.get('/dates', (req, res) => {
+router.get('/dates', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to dates required' });
   const dates = db.prepare(
@@ -112,7 +119,7 @@ router.get('/dates', (req, res) => {
 });
 
 // Edit a single attendance record (change status)
-router.patch('/:id', (req, res) => {
+router.patch('/:id', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const { status, time, end_time } = req.body;
   if (!status || !['present', 'absent'].includes(status)) {
     return res.status(400).json({ error: 'Status must be "present" or "absent"' });
@@ -147,7 +154,7 @@ router.patch('/:id', (req, res) => {
 });
 
 // Delete a single attendance record (removes credit if absent)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const record = db.prepare('SELECT * FROM attendance_record WHERE id = ?').get(req.params.id);
   if (!record) return res.status(404).json({ error: 'Attendance record not found' });
 
@@ -167,7 +174,7 @@ router.delete('/:id', (req, res) => {
 });
 
 // Set replacement class — stores replacement date/time on the absent record, deducts credit, but does NOT create an attendance record
-router.post('/replacement', (req, res) => {
+router.post('/replacement', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const { student_id, attendance_id, replacement_date, time, end_time } = req.body;
 
   if (!student_id || !attendance_id || !replacement_date || !/^\d{4}-\d{2}-\d{2}$/.test(replacement_date)) {
@@ -192,11 +199,6 @@ router.post('/replacement', (req, res) => {
     return res.status(400).json({ error: 'Student has no credits to use' });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  if (replacement_date <= today) {
-    return res.status(400).json({ error: 'Replacement date must be in the future' });
-  }
-
   const transaction = db.transaction(() => {
     db.prepare('UPDATE attendance_record SET replacement_date = ?, replacement_time = ?, replacement_end_time = ? WHERE id = ?').run(replacement_date, time || null, end_time || null, attendance_id);
     db.prepare('UPDATE student SET credits = credits - 1 WHERE id = ?').run(student_id);
@@ -211,7 +213,7 @@ router.post('/replacement', (req, res) => {
 
 
 // Edit replacement date (only if date has not passed yet)
-router.patch('/:id/replacement', (req, res) => {
+router.patch('/:id/replacement', requireAuth, requirePermission('can_manage_students'), (req, res) => {
   const { replacement_date, time, end_time } = req.body;
   if (!replacement_date || !/^\d{4}-\d{2}-\d{2}$/.test(replacement_date)) {
     return res.status(400).json({ error: 'Valid replacement_date (YYYY-MM-DD) is required' });
@@ -224,14 +226,6 @@ router.patch('/:id/replacement', (req, res) => {
   }
   if (!record.replacement_date) {
     return res.status(400).json({ error: 'No replacement currently set. Use the replacement endpoint instead.' });
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
-  if (record.replacement_date <= today) {
-    return res.status(400).json({ error: 'Cannot edit a replacement date that has already passed or is today' });
-  }
-  if (replacement_date <= today) {
-    return res.status(400).json({ error: 'New replacement date must be in the future' });
   }
 
   db.prepare('UPDATE attendance_record SET replacement_date = ? WHERE id = ?').run(replacement_date, req.params.id);
